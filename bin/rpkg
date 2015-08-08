@@ -1,0 +1,100 @@
+#!/usr/bin/python -u
+import sys
+import os
+import optparse
+
+from rpkg import RpkgBuilder, RpkgReader, RpkgManager
+
+INIT_FILE_PATH = '/tmp/rpkg.init'
+
+oparser = optparse.OptionParser( description='rpkg installer/manager/builder' )
+
+oparser.add_option( '-b', '--build', help='Build new rpkg ( name, version, description required )', dest='build', metavar='FILENAME' )
+oparser.add_option( '-i', '--install', help='Install rpkg', dest='install', metavar='FILENAME' )
+oparser.add_option( '-r', '--from-repo', help='Install from repo ( name required )', dest='repo' )
+
+oparser.add_option( '-l', '--list', help='List Installed Packages', dest='list', action='store_true' )
+
+oparser.add_option( '-n', '--name', help='Name of Package', dest='name' )
+oparser.add_option( '-v', '--version', help='Version of Package', dest='version' )
+oparser.add_option( '-c', '--description', help='Description of Package', dest='description' )
+oparser.add_option( '-t', '--init-script', help='Init Script File', dest='init_script', metavar='FILENAME' )
+oparser.add_option( '-d', '--data', help='Package Data/Contense root directory', metavar='DIRNAME' )
+
+oparser.add_option( '-y', '--yes', help='Assume "yes" for Questions', action='store_true' )
+
+( options, args ) = oparser.parse_args()
+
+if not options.build and not options.install and not options.repo and not options.list:
+  oparser.error( 'Either Build, Install, From Repo or List muse be specified.' )
+  sys.exit( 1 )
+
+# do build first, it's dosen't require manager, so don't leave the db behind
+
+def _continue_prompt():
+  if options.yes:
+    return True
+
+  tmp = raw_input( 'Continue? (Y/N):' )
+  if tmp.lower() == 'y':
+    return True
+
+  else:
+    return False
+
+if options.build:
+  if not options.name or not options.data or not options.version:
+    oparser.error( 'No Name, Data, or Version Specified' )
+    sys.exit( 1 )
+
+  if options.init_script and not os.path.isfile( options.init_script ):
+    print 'Init Script "%s" does not exists or is not a file.' % options.init_script
+    sys.exit( 1 )
+
+  if not os.path.isdir( options.data ):
+    print 'Data "%s" is not a directory.' % options.data
+    sys.exit( 1 )
+
+  if not options.description or not options.init_script:
+    print 'WARNING: Description and/or Init Script not Specified'
+    if not _continue_prompt():
+      print 'Bailing.'
+      sys.exit( 0 )
+
+  builder = RpkgBuilder()
+  builder.data = options.data
+  builder.name = options.name
+  builder.version = options.version
+  builder.description = options.description
+  if options.init_script:
+    builder.setInit( open( options.init_script, 'r' ).read() )
+
+  builder.write( options.build )
+
+  sys.exit( 0 )
+
+manager = RpkgManager()
+
+if options.list:
+  package_map = manager.getInstalledPackages()
+  print 'Package\tVersion\tInstalled\tPkg Created\tDescription'
+  for package in package_map:
+    item = package_map[ package ]
+    print '%s\t%s\t%s\t%s\t%s' % ( package, item[ 'version' ], item[ 'installed' ], item[ 'pkg_created' ], item[ 'description' ] )
+
+  sys.exit( 0 )
+
+if options.install:
+  if not os.path.isfile( options.install ):
+    print 'Package "%s" is does not exist or is not a file.' % options.install
+    sys.exit( 1 )
+
+  reader = RpkgReader( options.install )
+
+  init = open( INIT_FILE_PATH, 'w' )
+  init.write( reader.readInit )
+  init.close()
+
+  reader.extract( '/' )
+
+  os.unlink( INIT_FILE_PATH )
