@@ -6,7 +6,7 @@ from gzip import GzipFile
 from tarfile import TarFile, TarInfo
 
 
-class RpkgBuilder( object ):
+class RespkgBuilder( object ):
   def __init__( self ):
     self.control = {
                      'created': datetime.utcnow().isoformat()

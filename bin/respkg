@@ -1,0 +1,214 @@
+#!/usr/bin/python -u
+import sys
+import os
+import optparse
+import subprocess
+
+from respkg import RespkgBuilder, RespkgReader, RespkgManager, __VERSION__
+
+INIT_FILE_PATH = '/tmp/respkg.init'
+
+oparser = optparse.OptionParser( description='respkg installer/manager/builder, version: %s' % __VERSION__ )
+oparser.add_option( '-y', '--yes', help='Assume "yes" for Questions', action='store_true' )
+
+ogroup = optparse.OptionGroup( oparser, 'Package Building', 'name(-n) and version(-v) are required.' )
+ogroup.add_option( '-b', '--build', help='Build new respkg ( name, version, description required )', dest='build', metavar='FILENAME' )
+ogroup.add_option( '-n', '--name', help='Name of Package, must be a single word', dest='name' )
+ogroup.add_option( '-v', '--version', help='Version of Package', dest='version' )
+ogroup.add_option( '-c', '--description', help='Description of Package', dest='description' )
+ogroup.add_option( '-t', '--init-script', help='Init Script File', dest='init_script', metavar='FILENAME' )
+ogroup.add_option( '-d', '--data', help='Package Data/Contense root directory', metavar='DIRNAME' )
+oparser.add_option_group( ogroup )
+
+ogroup = optparse.OptionGroup( oparser, 'Package Installing', 'Install from local file with install(-i) or from a JSON repo with from-repo(-r)' )
+ogroup.add_option( '-r', '--from-repo', help='Install from repo, followed by package name, and optionally version, (example: respkg -r myrepo mypackage [version])', dest='repo' )
+ogroup.add_option( '-i', '--install', help='Install respkg', dest='install', metavar='FILENAME' )
+ogroup.add_option( '-a', '--target-dir', help='Target Directory to install to (default: /)', dest='target_dir', default='/' )
+oparser.add_option_group( ogroup )
+
+ogroup = optparse.OptionGroup( oparser, 'Other Utilities', '' )
+ogroup.add_option( '-l', '--list', help='List Installed Packages', dest='list', action='store_true' )
+ogroup.add_option( '--add-repo', help='Add Repo, followed by repo name, url for the repo, component, and optionally the proxy, url is the path to the location where the _repo_<component> is directory located. (example: respkg --add-repo myrepo http://repo/url mycomponent [proxy] )', dest='add_repo', action='store_true' )
+ogroup.add_option( '--set-key', help='Add Public Key to Repo, followed by repo name, then the repos signing key, signing key may be "-" to read from from stdin', dest='set_key', action='store_true' )
+oparser.add_option_group( ogroup )
+
+( options, args ) = oparser.parse_args()
+
+if not options.build and not options.install and not options.repo and not options.list and not options.add_repo:
+  oparser.error( 'Either Build, Install, From Repo, Add Repo, or List muse be specified.' )
+  sys.exit( 1 )
+
+# do build first, it's dosen't require manager, so don't leave the db behind
+
+def _continue_prompt():
+  if options.yes:
+    return True
+
+  tmp = raw_input( 'Continue? (Y/N):' )
+  if tmp.lower() == 'y':
+    return True
+
+  else:
+    return False
+
+
+def _install_file( file_name ):
+  if not os.path.isdir( options.target_dir ):
+    print 'Target dir "%s" does not exist or is not a directory.' % options.target_dir
+    return False
+
+  reader = RespkgReader( options.install )
+
+  prev = manager.getPackage( reader.name )
+  if prev:
+    if prev[ 'version' ] > reader.version:
+      print 'WARNING: Previosully install package has a greater version number.'
+      if not _continue_prompt():
+        print 'Bailing.'
+        return True
+
+    if options.target_dir != prev[ 'target_dir' ]:
+      print 'WARNING: Installing to diffrent target directory than last time.'
+      if not _continue_prompt():
+        print 'Bailing.'
+        return True
+
+  else:
+    prev = { 'version': '*NEW*' }
+
+  init = open( INIT_FILE_PATH, 'w' )
+  init.write( reader.readInit() )
+  init.close()
+  os.chmod( INIT_FILE_PATH, 0755 )
+
+  reader.extract( options.target_dir )
+
+  rc = subprocess.call( [ INIT_FILE_PATH, options.target_dir, reader.version, prev[ 'version' ] ] )
+  os.unlink( INIT_FILE_PATH )
+
+  if rc != 0:
+    print 'WARNING: init returned %s' % rc
+    return False
+
+  manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir )
+
+  return True
+
+
+if options.build:
+  if not options.name or not options.data or not options.version:
+    oparser.error( 'No Name, Data, or Version Specified' )
+    sys.exit( 1 )
+
+  if options.init_script and not os.path.isfile( options.init_script ):
+    print 'Init Script "%s" does not exists or is not a file.' % options.init_script
+    sys.exit( 1 )
+
+  if not os.path.isdir( options.data ):
+    print 'Data "%s" is not a directory.' % options.data
+    sys.exit( 1 )
+
+  if not options.description or not options.init_script:
+    print 'WARNING: Description and/or Init Script not Specified'
+    if not _continue_prompt():
+      print 'Bailing.'
+      sys.exit( 0 )
+
+  builder = RespkgBuilder()
+  builder.data = options.data
+  builder.name = options.name
+  builder.version = options.version
+  builder.description = options.description
+  if options.init_script:
+    builder.setInit( open( options.init_script, 'r' ).read() )
+
+  builder.write( options.build )
+
+  sys.exit( 0 )
+
+# all these options require the manager, I guess we can create the db now
+
+manager = RespkgManager()
+
+
+if options.list:
+  repo_map = manager.repoList()
+  print 'Repo\tURL\tComponent\tProxy\tHas Key'
+  for repo in repo_map:
+    item = repo_map[ repo ]
+    print '%s\t%s\t%s\t%s\t%s' % ( repo, item[ 'url' ], item[ 'component'], item[ 'proxy' ], item[ 'has_key' ] )
+
+  print
+
+  package_map = manager.packageList()
+  print 'Package\tVersion\tInstalled\t\tPkg Created\t\tTarget Dir\tDescription'
+  for package in package_map:
+    item = package_map[ package ]
+    print '%s\t%s\t%s\t%s\t%s\t%s' % ( package, item[ 'version' ], item[ 'installed' ], item[ 'pkg_created' ], item[ 'target_dir' ], item[ 'description' ] )
+
+  sys.exit( 0 )
+
+
+if options.add_repo:
+  if len( args ) < 3:
+    oparser.error( 'Repo Name, URL, component are required' )
+    sys.exit( 1 )
+
+  try:
+    proxy = args[3]
+  except IndexError:
+    proxy = None
+
+  manager.addRepo( args[0], args[1], args[2], proxy )
+
+  sys.exit( 0 )
+
+
+if options.set_key:
+  pub_key = ''
+  keyfile = args[1]
+
+  if keyfile == '-':
+    pub_key = sys.stdin.read()
+
+  else:
+    if not os.path.isfile( keyfile ):
+      print 'Key File "%s" does not exist or is not a file.' % keyfile
+      sys.exit( 1 )
+
+    pub_key = open( keyfile, 'r' ).read()
+
+  manager.setKey( args[0], pub_key )
+
+
+if options.repo:
+  if len( args ) < 2:
+    oparser.error( 'Repo Name, Package Name are required' )
+    sys.exit( 1 )
+
+  try:
+    version = args[3]
+  except IndexError:
+    version = None
+
+  tempfile = manager.getPackageFile( args[0], args[1], version )
+
+  rc = _install_file( tempfile )
+
+  os.unlink( tempfile )
+
+  if not rc:
+    sys.exit( 1 )
+
+  sys.exit( 0 )
+
+
+if options.install:
+  if not os.path.isfile( options.install ):
+    print 'Package "%s" is does not exist or is not a file.' % options.install
+    sys.exit( 1 )
+
+  if not _install_file( options.install ):
+    sys.exit( 1 )
+
+  sys.exit( 0 )

@@ -5,7 +5,7 @@ from gzip import GzipFile
 from tarfile import TarFile
 
 
-class RpkgReader( object ):
+class RespkgReader( object ):
   def __init__( self, file_name ):
     toptar = GzipFile( file_name, 'r' ).read()
     self.source = TarFile( fileobj=StringIO( toptar ) )
@@ -26,7 +26,7 @@ class RpkgReader( object ):
 
   @property
   def created( self ):
-    return self.control.get( 'created', datetime( 1980, 0, 0 ) )
+    return self.control.get( 'created', datetime( 1980, 1, 1 ) )
 
   def readInit( self ):
     return self.source.extractfile( './INIT' ).read()
