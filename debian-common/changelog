@@ -1,3 +1,10 @@
+respkg (0.2-1) DIST; urgency=medium
+
+  * Added conflicts-with support.
+  * Saving sha256s of the installed files
+
+ -- Peter <peter@blueboy>  Mon, 25 May 2015 16:53:02 -0600
+
 respkg (0.1-1) DIST; urgency=medium
 
   * Initial release.
