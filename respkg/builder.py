@@ -76,5 +76,18 @@ class RespkgBuilder( object ):
   def created( self, value ):
     self.control[ 'created' ] = value.isoformat()
 
+  @property
+  def conflicts( self ):
+    return self.control.get( 'conflicts', [] )
+
+  @conflicts.setter
+  def conflicts( self, value ):
+    if isinstance( value, basestring ):
+      self.conflicts[ 'conflicts' ] = [ value ]
+    elif isinstance( value, list ):
+      self.conflicts[ 'conflicts' ] = value
+    else:
+      raise TypeError( 'conflicts must be a string or list' )
+
   def setInit( self, value ):
     self.init = value

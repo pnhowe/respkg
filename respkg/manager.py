@@ -8,7 +8,7 @@ STATE_DB_FILE_NAME = '/var/lib/respkg/manager.db'
 
 __VERSION__ = "0.1"
 
-class RsepkgManager( object ):
+class RespkgManager( object ):
   def __init__( self ):
     self._checkDB( STATE_DB_FILE_NAME ) # check db before we connect to it
     self.conn = sqlite3.connect( STATE_DB_FILE_NAME )
@@ -48,6 +48,14 @@ class RsepkgManager( object ):
       "created" datetime DEFAULT CURRENT_TIMESTAMP,
       "modified" datetime DEFAULT CURRENT_TIMESTAMP
     );""" )
+
+    conn.execute( """CREATE TABLE "files" (
+    "package" char(50) NOT NULL UNIQUE,
+    "file_path" char(512) NOT NULL,
+    "sha256" char(65) NOT NULL,
+    "created" datetime DEFAULT CURRENT_TIMESTAMP,
+    "modified" datetime DEFAULT CURRENT_TIMESTAMP
+  );""" )
 
     #TODO: make package.package and repo.name unique
 
@@ -158,6 +166,35 @@ class RsepkgManager( object ):
     cur.close()
 
     return result
+
+  def getInstalledPackages( self ):
+    result = []
+    cur = self.conn.cursor()
+    cur.execute( 'SELECT "package" FROM "packages";' )
+    result = [ i[0] for i in cur.fetchall() ]
+    cur.close()
+    return result
+
+  def getInstalledFiles( self ):
+    result = []
+    cur = self.conn.cursor()
+    cur.execute( 'SELECT "file_path" FROM "files";' )
+    result = [ i[0] for i in cur.fetchall() ]
+    cur.close()
+    return result
+
+  def setFileSum( self, package, file_path, sha256 ):
+    cur = self.conn.cursor()
+    cur.execute( 'SELECT COUNT(*) FROM "files" WHERE "file_path" = "%s";' % file_path )
+    ( count, ) = cur.fetchone()
+    if count: #TODO: check to make sure the package didn't change when doing an update
+      cur.execute( 'UPDATE "files" SET "sha256" = ?, "modified" = NOW() WHERE "file_path" = ?;', ( sha256, file_path ) )
+
+    else:
+      cur.execute( 'INSERT INTO "files" ( "file_path", "package", "sha256" ) VALUES( ?, ?, ?, ? );', ( file_path, package, sha256 ) )
+
+    cur.close()
+    self.conn.commit()
 
   def addRepo( self, name, url, component, proxy ):
     if self._getManafest( url, component, proxy ) is None:

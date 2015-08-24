@@ -28,8 +28,20 @@ class RespkgReader( object ):
   def created( self ):
     return self.control.get( 'created', datetime( 1980, 1, 1 ) )
 
+  @property
+  def conflicts( self ):
+    return self.control.get( 'conflicts', [] )
+
   def readInit( self ):
     return self.source.extractfile( './INIT' ).read()
+
+  def getFileList( self ):
+    results = []
+    for member in TarFile( fileobj=self.source.extractfile( './DATA' ) ).getmembers():
+      if member.isfile():
+        results.append( member.name )
+
+    return results
 
   def extract( self, path ):
     TarFile( fileobj=self.source.extractfile( './DATA' ) ).extractall( path=path )
