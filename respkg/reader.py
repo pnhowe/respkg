@@ -1,3 +1,4 @@
+import os
 import json
 from datetime import datetime
 from StringIO import StringIO
@@ -43,5 +44,12 @@ class RespkgReader( object ):
 
     return results
 
-  def extract( self, path ):
-    TarFile( fileobj=self.source.extractfile( './DATA' ) ).extractall( path=path )
+  def extract( self, path, cb=None ):
+    tarfile = TarFile( fileobj=self.source.extractfile( './DATA' ) )
+    for member in tarfile.getmembers():
+      if member.name in ( '/', '' ):  # extract can't handle making '/' when installing '/'
+        continue
+
+      tarfile.extract( member, path )
+      if member.isfile() and cb:
+        cb( self.name, os.path.join( path, member.name ) )

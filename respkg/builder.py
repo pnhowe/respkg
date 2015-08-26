@@ -9,6 +9,7 @@ from tarfile import TarFile, TarInfo
 class RespkgBuilder( object ):
   def __init__( self ):
     self.control = {
+                     'respkg_version': '1',
                      'created': datetime.utcnow().isoformat()
                    }
     self.init = ''

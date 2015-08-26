@@ -15,7 +15,7 @@ oparser.add_option( '-y', '--yes', help='Assume "yes" for Questions', action='st
 ogroup = optparse.OptionGroup( oparser, 'Package Building', 'name(-n) and version(-v) are required.' )
 ogroup.add_option( '-b', '--build', help='Build new respkg ( name, version, description required )', dest='build', metavar='FILENAME' )
 ogroup.add_option( '-n', '--name', help='Name of Package, must be a single word', dest='name' )
-ogroup.add_option( '-v', '--version', help='Version of Package', dest='version' )
+ogroup.add_option( '-e', '--version', help='Version of Package', dest='version' )
 ogroup.add_option( '-c', '--description', help='Description of Package', dest='description' )
 ogroup.add_option( '-t', '--init-script', help='Init Script File', dest='init_script', metavar='FILENAME' )
 ogroup.add_option( '-d', '--data', help='Package Data/Contense root directory', dest='data', metavar='DIRNAME' )
@@ -32,19 +32,19 @@ ogroup = optparse.OptionGroup( oparser, 'Other Utilities', '' )
 ogroup.add_option( '-l', '--list', help='List Installed Packages', dest='list', action='store_true' )
 ogroup.add_option( '--add-repo', help='Add Repo, followed by repo name, url for the repo, component, and optionally the proxy, url is the path to the location where the _repo_<component> is directory located. (example: respkg --add-repo myrepo http://repo/url mycomponent [proxy] )', dest='add_repo', action='store_true' )
 ogroup.add_option( '--set-key', help='Add Public Key to Repo, followed by repo name, then the repos signing key, signing key may be "-" to read from from stdin', dest='set_key', action='store_true' )
+ogroup.add_option( '--check-installed', help='Verify the Checksums of the locally installed files', dest='check_installed', action='store_true' )
 oparser.add_option_group( ogroup )
 
 ( options, args ) = oparser.parse_args()
-
-if not options.build and not options.install and not options.repo and not options.list and not options.add_repo:
-  oparser.error( 'Either Build, Install, From Repo, Add Repo, or List muse be specified.' )
-  sys.exit( 1 )
 
 # do build first, it's dosen't require manager, so don't leave the db behind
 
 def _continue_prompt():
   if options.yes:
     return True
+
+  if not sys.stdin.isatty() or not sys.stdout.isatty(): # non interactive, fail
+    return False
 
   tmp = raw_input( 'Continue? (Y/N):' )
   if tmp.lower() == 'y':
@@ -53,16 +53,27 @@ def _continue_prompt():
   else:
     return False
 
+def _updatesha( package, file_path ):
+  sha256 = hashlib.sha256()
+  sha256.update( open( file_path, 'r' ).read() )
+  manager.setFileSum( package, file_path, sha256.hexdigest() )
 
-def _install_file( file_name ):
-  if not os.path.isdir( options.target_dir ):
-    print 'Target dir "%s" does not exist or is not a directory.' % options.target_dir
+
+def _install_file( file_name, target_dir, manager ):
+  if not os.path.isdir( target_dir ):
+    print 'Target dir "%s" does not exist or is not a directory.' % target_dir
     return False
+
+  target_dir = os.path.realpath( target_dir )
 
   reader = RespkgReader( file_name )
 
-  installed_list = manager.getInstalledPackages()
-  conflicts
+  conflict_list = set( reader.conflicts ) & set( manager.getInstalledPackages() )
+  if conflict_list:
+    print 'ERROR: this package conflicts with these allready installed packages:'
+    print '\n'.join( conflict_list )
+    print 'Bailing.'
+    return False
 
   prev = manager.getPackage( reader.name )
   if prev:
@@ -70,41 +81,43 @@ def _install_file( file_name ):
       print 'WARNING: Previosully install package has a greater version number.'
       if not _continue_prompt():
         print 'Bailing.'
-        return True
+        return False
 
-    if options.target_dir != prev[ 'target_dir' ]:
+    if target_dir != prev[ 'target_dir' ]:
       print 'WARNING: Installing to diffrent target directory than last time.'
+      print 'Previous Install Location: "%s"' % prev[ 'target_dir' ]
+      print 'Curent Install Location: "%s"' % target_dir
       if not _continue_prompt():
         print 'Bailing.'
-        return True
+        return False
 
   else:
     prev = { 'version': '*NEW*' }
 
+  if prev[ 'version' ] != reader.version:
+    print 'Upgrading from "%s" to "%s"' % ( prev[ 'version' ], reader.version )
+  else:
+    print 'Re-Installing versino "%s"' % reader.version
+
   filename_list = reader.getFileList()
 
-  installed_list = manager.getInstalledFiles()
+  installed_list = manager.getInstalledFiles( reader.name )
 
   common_list = set( filename_list ) & set( installed_list )
   if common_list:
     print 'ERROR: these files are allready installed by another package:'
     print '\n'.join( common_list )
     print 'Bailing.'
-    sys.exit( 1 )
+    return False
 
   init = open( INIT_FILE_PATH, 'w' )
   init.write( reader.readInit() )
   init.close()
   os.chmod( INIT_FILE_PATH, 0755 )
 
-  reader.extract( options.target_dir )
+  reader.extract( target_dir, _updatesha )
 
-  for filename in filename_list:
-    sha256 = hashlib.sha256()
-    sha256.update( open( filename, 'r' ).read() )
-    manager.setFileSum( reader.name, filename, sha256.hexdigest() )
-
-  rc = subprocess.call( [ INIT_FILE_PATH, options.target_dir, reader.version, prev[ 'version' ] ] )
+  rc = subprocess.call( [ INIT_FILE_PATH, target_dir, reader.version, prev[ 'version' ] ] )
   os.unlink( INIT_FILE_PATH )
 
   if rc != 0:
@@ -133,7 +146,7 @@ if options.build:
     print 'WARNING: Description and/or Init Script not Specified'
     if not _continue_prompt():
       print 'Bailing.'
-      sys.exit( 0 )
+      sys.exit( 1 )
 
   builder = RespkgBuilder()
   builder.data = options.data
@@ -173,6 +186,15 @@ if options.list:
   sys.exit( 0 )
 
 
+if options.check_installed:
+  file_list = manager.getFileChecksums()
+  for filename in file_list:
+    sha256 = hashlib.sha256()
+    sha256.update( open( filename, 'r' ).read() )
+    print '%s\t%s' % ( filename, 'Good' if sha256.hexdigest() == file_list[ filename ] else 'Bad' )
+
+  sys.exit( 0 )
+
 if options.add_repo:
   if len( args ) < 3:
     oparser.error( 'Repo Name, URL, component are required' )
@@ -206,8 +228,8 @@ if options.set_key:
 
 
 if options.repo:
-  if len( args ) < 2:
-    oparser.error( 'Repo Name, Package Name are required' )
+  if len( args ) < 1:
+    oparser.error( 'Package Name(s) are required' )
     sys.exit( 1 )
 
   try:
@@ -215,11 +237,14 @@ if options.repo:
   except IndexError:
     version = None
 
-  tempfile = manager.getPackageFile( args[0], args[1], version )
+  for package in args:
+    tempfile = manager.getPackageFile( options.repo, package, version )
+    if tempfile is None:
+      print 'Error installing from repo'
+      sys.exit( 1 )
 
-  rc = _install_file( tempfile )
-
-  os.unlink( tempfile )
+    rc = _install_file( tempfile, options.target_dir, manager )
+    os.unlink( tempfile )
 
   if not rc:
     sys.exit( 1 )
@@ -232,7 +257,10 @@ if options.install:
     print 'Package "%s" is does not exist or is not a file.' % options.install
     sys.exit( 1 )
 
-  if not _install_file( options.install ):
+  if not _install_file( options.install, options.target_dir, manager ):
     sys.exit( 1 )
 
   sys.exit( 0 )
+
+oparser.print_help()
+sys.exit( 1 )

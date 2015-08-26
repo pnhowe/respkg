@@ -3,6 +3,8 @@ import httplib
 import socket
 import json
 import sqlite3
+import hashlib
+import os
 
 STATE_DB_FILE_NAME = '/var/lib/respkg/manager.db'
 
@@ -49,17 +51,16 @@ class RespkgManager( object ):
       "modified" datetime DEFAULT CURRENT_TIMESTAMP
     );""" )
 
-    conn.execute( """CREATE TABLE "files" (
-    "package" char(50) NOT NULL UNIQUE,
-    "file_path" char(512) NOT NULL,
-    "sha256" char(65) NOT NULL,
-    "created" datetime DEFAULT CURRENT_TIMESTAMP,
-    "modified" datetime DEFAULT CURRENT_TIMESTAMP
-  );""" )
+      conn.execute( """CREATE TABLE "files" (
+      "package" char(50) NOT NULL,
+      "file_path" char(512) NOT NULL UNIQUE,
+      "sha256" char(65) NOT NULL,
+      "created" datetime DEFAULT CURRENT_TIMESTAMP,
+      "modified" datetime DEFAULT CURRENT_TIMESTAMP
+    );""" )
 
-    #TODO: make package.package and repo.name unique
+      conn.execute( 'UPDATE "control" SET "value" = "2" WHERE "key" = "version";' )
 
-    conn.execute( 'UPDATE "control" SET "value" = "2" WHERE "key" = "version";' )
     conn.commit()
 
   def _getHTTP( self, path, proxy, target_file=None ):
@@ -110,16 +111,28 @@ class RespkgManager( object ):
     if manifest is None:
       return None
 
+    result = {}
+
     try:
-      return json.loads( manifest )
+      manifest = json.loads( manifest )
     except ValueError:
       print 'Manafest at "%s" is not valid JSON' % path
       return None
 
-    return None
+    for package in manifest:
+      for item in manifest[ package ]:
+        if item[ 'type' ] != 'respkg':
+          continue
 
-  def _getPackageFile( self, repo_url, file, proxy ):
-    path = '%s/%s' % ( repo_url, file )
+        try:
+          result[ package ][ item[ 'version' ] ] = { 'path': item[ 'path' ], 'sha256': item[ 'sha256' ] }
+        except KeyError:
+          result[ package ] = { item[ 'version' ]: { 'path': item[ 'path' ], 'sha256': item[ 'sha256' ] } }
+
+    return result
+
+  def _getPackageFile( self, repo_url, file_path, proxy ):
+    path = '%s/%s' % ( repo_url, file_path )
     tmpfile = open( '/tmp/respkgdownload.tmp', 'w' )
     rc = self._getHTTP( path, proxy, tmpfile )
     if rc is None:
@@ -175,26 +188,41 @@ class RespkgManager( object ):
     cur.close()
     return result
 
-  def getInstalledFiles( self ):
+  def getInstalledFiles( self, exclude=None ):
     result = []
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "file_path" FROM "files";' )
+    if exclude:
+      cur.execute( 'SELECT "file_path" FROM "files" WHERE "package" != ?;', ( exclude, ) )
+    else:
+      cur.execute( 'SELECT "file_path" FROM "files";' )
+
     result = [ i[0] for i in cur.fetchall() ]
     cur.close()
     return result
 
+  # no we are not saving the full path name to the table, otherwise installing the file to a new location the second time will cause problems
+  # mabey some day add support to detect and move files if full file name is needed
   def setFileSum( self, package, file_path, sha256 ):
     cur = self.conn.cursor()
     cur.execute( 'SELECT COUNT(*) FROM "files" WHERE "file_path" = "%s";' % file_path )
     ( count, ) = cur.fetchone()
     if count: #TODO: check to make sure the package didn't change when doing an update
-      cur.execute( 'UPDATE "files" SET "sha256" = ?, "modified" = NOW() WHERE "file_path" = ?;', ( sha256, file_path ) )
+      cur.execute( 'UPDATE "files" SET "sha256" = ?, "modified" = CURRENT_TIMESTAMP WHERE "file_path" = ?;', ( sha256, file_path ) )
 
     else:
-      cur.execute( 'INSERT INTO "files" ( "file_path", "package", "sha256" ) VALUES( ?, ?, ?, ? );', ( file_path, package, sha256 ) )
+      cur.execute( 'INSERT INTO "files" ( "file_path", "package", "sha256" ) VALUES( ?, ?, ? );', ( file_path, package, sha256 ) )
 
     cur.close()
     self.conn.commit()
+
+  def getFileChecksums( self ):
+    result = {}
+    cur = self.conn.cursor()
+    cur.execute( 'SELECT "file_path", "sha256", "target_dir" from "files" LEFT OUTER JOIN "packages" ON "files"."package" = "packages"."package";')
+    for ( file_path, sha256, target_dir ) in cur.fetchall():
+      result[ os.path.join( target_dir, file_path ) ] = sha256
+
+    return result
 
   def addRepo( self, name, url, component, proxy ):
     if self._getManafest( url, component, proxy ) is None:
@@ -226,25 +254,35 @@ class RespkgManager( object ):
     cur.close()
     self.conn.commit()
 
-  def getManafest( self, name ):
+  def getPackageFile( self, repo_name, package_name, version=None ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "url", "component", "proxy", "pub_key" FROM "repos" WHERE "name" = "%s";' % name )
-    ( url, component, proxy, pub_key ) = cur.fetchone()
+    cur.execute( 'SELECT "url", "component", "proxy", "pub_key" FROM "repos" WHERE "name" = "%s";' % repo_name )
+    try:
+      ( repo_url, component, proxy, pub_key ) = cur.fetchone()
+    except TypeError:
+      print 'Repo "%s" not known.' % repo_name
+      cur.close()
+      return None
+
     cur.close()
 
-    return self._getManafest( url, component, proxy )
-
-  def getPackageFile( self, repo_name, package_name, version=None ):
-    manafest = self.getManafest( repo_name )
+    manafest = self._getManafest( repo_url, component, proxy )
     try:
       package = manafest[ package_name ]
     except KeyError:
       print 'Package "%s" not found in manafest' % package_name
-      return False
+      return None
 
+    version = max( package.keys() )
 
+    local_file = self._getPackageFile( repo_url, package[ version ][ 'path' ], proxy )
+    sha256 = hashlib.sha256()
+    sha256.update( open( local_file, 'r' ).read() )
+    if package[ version ][ 'sha256' ] != sha256.hexdigest():
+      print 'SHA256 of downloaded file dose not match manifest'
+      return None
 
-    return self._getPackageFile( repo_url, file_name, proxy )
+    return local_file
 
   def repoList( self ):
     result = {}
