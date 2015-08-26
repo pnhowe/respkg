@@ -1,3 +1,10 @@
+respkg (0.3-1) DIST; urgency=medium
+
+  * Now installs from a JSON repo
+  * building tweeks
+
+ -- Peter <peter@blueboy>  Mon, 25 May 2015 16:53:02 -0600
+
 respkg (0.2-1) DIST; urgency=medium
 
   * Added conflicts-with support.
