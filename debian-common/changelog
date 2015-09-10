@@ -1,3 +1,9 @@
+respkg (0.4-1) DIST; urgency=medium
+
+  * removed cron.d that should not be there
+
+ -- Peter <peter@blueboy>  Wed, 09 Sep 2015 21:49:44 -0600
+
 respkg (0.3-1) DIST; urgency=medium
 
   * Now installs from a JSON repo
