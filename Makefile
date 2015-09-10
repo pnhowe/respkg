@@ -27,7 +27,7 @@ dpkg-setup:
 	touch dpkg-setup
 
 dpkg:
-	dpkg-buildpackage -b -us -uc > /tmp/dpkg-build.log 2>&1
+	dpkg-buildpackage -b -us -uc
 	touch dpkg
 
 dpkg-file:
@@ -44,7 +44,7 @@ rpm-setup:
 	touch rpm-setup
 
 rpm:
-	rpmbuild -v -bb rpmbuild/config.spec > /tmp/rpm-build.log 2>&1
+	rpmbuild -v -bb rpmbuild/config.spec
 	touch rpm
 
 rpm-file:
