@@ -226,6 +226,7 @@ if options.set_key:
 
   manager.setKey( args[0], pub_key )
 
+  sys.exit( 0 )
 
 if options.repo:
   if len( args ) < 1:
@@ -237,13 +238,15 @@ if options.repo:
   except IndexError:
     version = None
 
+  rc = True
+
   for package in args:
     tempfile = manager.getPackageFile( options.repo, package, version )
     if tempfile is None:
       print 'Error installing from repo'
       sys.exit( 1 )
 
-    rc = _install_file( tempfile, options.target_dir, manager )
+    rc &= _install_file( tempfile, options.target_dir, manager )
     os.unlink( tempfile )
 
   if not rc:
