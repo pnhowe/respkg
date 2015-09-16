@@ -48,6 +48,6 @@ rpm:
 	touch rpm
 
 rpm-file:
-	echo $(shell ls rpmbuild/RPMS/noarch/respkg-*.rpm)
+	echo $(shell ls rpmbuild/RPMS/*/respkg-*.rpm)
 
 .PHONY: all clean full-clean dpkg-distros dpkg-requires dpkg-file rpm-distros rpm-requires rpm-file
