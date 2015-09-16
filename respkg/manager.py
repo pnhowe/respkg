@@ -59,6 +59,13 @@ class RespkgManager( object ):
       "modified" datetime DEFAULT CURRENT_TIMESTAMP
     );""" )
 
+      conn.execute( """CREATE TABLE "conflicts" (
+      "package" char(50) NOT NULL,
+      "with" char(50) NOT NULL,
+      "created" datetime DEFAULT CURRENT_TIMESTAMP,
+      "modified" datetime DEFAULT CURRENT_TIMESTAMP
+    );""" )
+
       conn.execute( 'UPDATE "control" SET "value" = "2" WHERE "key" = "version";' )
 
     conn.commit()
@@ -153,7 +160,7 @@ class RespkgManager( object ):
 
     return result
 
-  def packageInstalled( self, name, version, description, pkg_created, target_dir ):
+  def packageInstalled( self, name, version, description, pkg_created, target_dir, conflict_list ):
     cur = self.conn.cursor()
     cur.execute( 'SELECT COUNT(*) FROM "packages" WHERE "package" = "%s";' % name )
     ( count, ) = cur.fetchone()
@@ -163,8 +170,32 @@ class RespkgManager( object ):
     else:
       cur.execute( 'UPDATE "packages" SET "version"=?, "target_dir"=?, "description"=?, "pkg_created"=?, "installed"=CURRENT_TIMESTAMP, "modified"=CURRENT_TIMESTAMP WHERE "package"=?;', ( version, target_dir, description, pkg_created, name ) )
 
+    cur.execute( 'DELETE FROM "conflicts" WHERE "package" = ?;', name )
+
+    for conflict in conflict_list:
+      cur.execute( 'INSERT INTO "conflicts" ( "package", "with" ) VALUES ( ?, ? );', ( name, conflict ) )
+
     cur.close()
     self.conn.commit()
+
+  def checkConflicts( self, name, conflict_list ):
+    cur = self.conn.cursor()
+    cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ?;' % name )
+    result_list = [ i[0] for i in cur.fetchall() ]
+    if result_list:
+      print 'ERROR: Package "%s" conflicted by package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
+      cur.close()
+      return True
+
+    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN ?;' % conflict_list )
+    result_list = [ i[0] for i in cur.fetchall() ]
+    if result_list:
+      print 'ERROR: Package "%s" conflicts with package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
+      cur.close()
+      return True
+
+    cur.close()
+    return False
 
   def getPackage( self, name ):
     result = {}

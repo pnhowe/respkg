@@ -68,10 +68,7 @@ def _install_file( file_name, target_dir, manager ):
 
   reader = RespkgReader( file_name )
 
-  conflict_list = set( reader.conflicts ) & set( manager.getInstalledPackages() )
-  if conflict_list:
-    print 'ERROR: this package conflicts with these allready installed packages:'
-    print '\n'.join( conflict_list )
+  if manager.checkConflicts( reader.name, reader.conflicts ):
     print 'Bailing.'
     return False
 
@@ -124,7 +121,7 @@ def _install_file( file_name, target_dir, manager ):
     print 'WARNING: init returned %s' % rc
     return False
 
-  manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir )
+  manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir, reader.conflicts )
 
   return True
 
