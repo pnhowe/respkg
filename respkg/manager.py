@@ -162,7 +162,7 @@ class RespkgManager( object ):
 
   def packageInstalled( self, name, version, description, pkg_created, target_dir, conflict_list ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT COUNT(*) FROM "packages" WHERE "package" = "%s";' % name )
+    cur.execute( 'SELECT COUNT(*) FROM "packages" WHERE "package" = ?;', name )
     ( count, ) = cur.fetchone()
     if count == 0:
       cur.execute( 'INSERT INTO "packages" ( "package", "version", "target_dir", "description", "installed", "pkg_created" ) VALUES ( ?, ?, ?, ?, CURRENT_TIMESTAMP, ? );', ( name, version, target_dir, description, pkg_created ) )
@@ -180,14 +180,14 @@ class RespkgManager( object ):
 
   def checkConflicts( self, name, conflict_list ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ?;' % name )
+    cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ?;', name )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print 'ERROR: Package "%s" conflicted by package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
       cur.close()
       return True
 
-    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN ?;' % conflict_list )
+    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN ?;', conflict_list )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print 'ERROR: Package "%s" conflicts with package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
@@ -200,7 +200,7 @@ class RespkgManager( object ):
   def getPackage( self, name ):
     result = {}
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "version", "target_dir", "description", "installed", "pkg_created", "modified" FROM "packages" WHERE "package" = "%s";' % name )
+    cur.execute( 'SELECT "version", "target_dir", "description", "installed", "pkg_created", "modified" FROM "packages" WHERE "package" = ?;', name )
     try:
       ( version, target_dir, description, installed, pkg_created, modified ) = cur.fetchone()
     except TypeError:
@@ -235,7 +235,8 @@ class RespkgManager( object ):
   # mabey some day add support to detect and move files if full file name is needed
   def setFileSum( self, package, file_path, sha256 ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT COUNT(*) FROM "files" WHERE "file_path" = "%s";' % file_path )
+    cur.execute( 'SELECT COUNT(*) FROM "files" WHERE "file_path" = ?;', file_path )
+
     ( count, ) = cur.fetchone()
     if count: #TODO: check to make sure the package didn't change when doing an update
       cur.execute( 'UPDATE "files" SET "sha256" = ?, "modified" = CURRENT_TIMESTAMP WHERE "file_path" = ?;', ( sha256, file_path ) )
@@ -261,7 +262,7 @@ class RespkgManager( object ):
       return None
 
     cur = self.conn.cursor()
-    cur.execute( 'SELECT COUNT(*) FROM "repos" WHERE "name" = "%s";' % name )
+    cur.execute( 'SELECT COUNT(*) FROM "repos" WHERE "name" = ?;', name )
     ( count, ) = cur.fetchone()
     if count == 1:
       cur.close()
@@ -274,7 +275,7 @@ class RespkgManager( object ):
 
   def setRepoKey( self, name, pub_key ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT COUNT(*) FROM "repos" WHERE "name" = "%s";' % name )
+    cur.execute( 'SELECT COUNT(*) FROM "repos" WHERE "name" = ?;', name )
     ( count, ) = cur.fetchone()
     if count != 1:
       cur.close()
@@ -287,7 +288,7 @@ class RespkgManager( object ):
 
   def getPackageFile( self, repo_name, package_name, version=None ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "url", "component", "proxy", "pub_key" FROM "repos" WHERE "name" = "%s";' % repo_name )
+    cur.execute( 'SELECT "url", "component", "proxy", "pub_key" FROM "repos" WHERE "name" = ?;', repo_name )
     try:
       ( repo_url, component, proxy, pub_key ) = cur.fetchone()
     except TypeError:
