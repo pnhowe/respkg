@@ -84,9 +84,9 @@ class RespkgBuilder( object ):
   @conflicts.setter
   def conflicts( self, value ):
     if isinstance( value, basestring ):
-      self.conflicts = [ value ]
+      self.control[ 'conflicts' ] = [ value ]
     elif isinstance( value, list ): #TODO: make sure every member of the list is a string
-      self.conflicts = value
+      self.control[ 'conflicts' ] = value
     else:
       raise TypeError( 'conflicts must be a string or list' )
 
