@@ -190,7 +190,7 @@ class RespkgManager( object ):
     cur.close()
     self.conn.commit()
 
-  def checkDepends( self, name, depends_list ):
+  def checkDepends( self, name, depends_list ): # true -> ok to install, ie dependancies met
     cur = self.conn.cursor()
     cur.execute( 'SELECT "package" FROM "packages" ORDER BY "package";' )
     target_list = [ i[0] for i in cur.fetchall() ]
@@ -207,24 +207,24 @@ class RespkgManager( object ):
 
     return True
 
-  def checkConflicts( self, name, conflict_list ):
+  def checkConflicts( self, name, conflict_list ): # true -> ok to install, ie no conflicts
     cur = self.conn.cursor()
     cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ? ORDER BY "package";', ( name, ) )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print 'ERROR: Package "%s" conflicted by package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
       cur.close()
-      return True
+      return False
 
     cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN (%s) ORDER BY "package";' % ','.join( '?' * len( conflict_list ) ), conflict_list )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print 'ERROR: Package "%s" conflicts with package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
       cur.close()
-      return True
+      return False
 
     cur.close()
-    return False
+    return True
 
   def getPackage( self, name ):
     result = {}

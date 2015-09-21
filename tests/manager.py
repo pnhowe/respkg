@@ -193,16 +193,16 @@ def test_conflicts():
                              'provides': [ ('otherpackage', 'oprov1'), ('otherpackage', 'oprov2'), ('otherpackage', 'oprov3'), ('thepackage', 'provide1'), ('thepackage', 'provide2') ],
                              'repos': [] }
 
-  assert rmgr.checkConflicts( 'newpkg', [] ) is False
-  assert rmgr.checkConflicts( 'newpkg', [ 'newcon1' ] ) is False
-  assert rmgr.checkConflicts( 'newpkg', [ 'thepackage' ] ) is True
-  assert rmgr.checkConflicts( 'newpkg', [ 'otherpackage' ] ) is True
-  assert rmgr.checkConflicts( 'newpkg', [ 'newcon1', 'otherpackage' ] ) is True
-  assert rmgr.checkConflicts( 'newpkg', [ 'newcon1', 'newcon2' ] ) is False
-  assert rmgr.checkConflicts( 'ocon1', [ 'newcon1', 'newcon2' ] ) is True
-  assert rmgr.checkConflicts( 'ocon1', [ 'thepackage' ] ) is True
-  assert rmgr.checkConflicts( 'ocon1', [ 'thepackage', 'newcon2'  ] ) is True
-  assert rmgr.checkConflicts( 'newpkg', [ 'conflict1', 'newcon2'  ] ) is False
+  assert rmgr.checkConflicts( 'newpkg', [] ) is True
+  assert rmgr.checkConflicts( 'newpkg', [ 'newcon1' ] ) is True
+  assert rmgr.checkConflicts( 'newpkg', [ 'thepackage' ] ) is False
+  assert rmgr.checkConflicts( 'newpkg', [ 'otherpackage' ] ) is False
+  assert rmgr.checkConflicts( 'newpkg', [ 'newcon1', 'otherpackage' ] ) is False
+  assert rmgr.checkConflicts( 'newpkg', [ 'newcon1', 'newcon2' ] ) is True
+  assert rmgr.checkConflicts( 'ocon1', [ 'newcon1', 'newcon2' ] ) is False
+  assert rmgr.checkConflicts( 'ocon1', [ 'thepackage' ] ) is False
+  assert rmgr.checkConflicts( 'ocon1', [ 'thepackage', 'newcon2'  ] ) is False
+  assert rmgr.checkConflicts( 'newpkg', [ 'conflict1', 'newcon2'  ] ) is True
 
 
 def test_depends():

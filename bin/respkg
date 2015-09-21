@@ -70,11 +70,11 @@ def _install_file( file_name, target_dir, manager ):
 
   reader = RespkgReader( file_name )
 
-  if manager.checkDepends( reader.name, reader.depends ):
+  if not manager.checkDepends( reader.name, reader.depends ):
     print 'Bailing.'
     return False
 
-  if manager.checkConflicts( reader.name, reader.conflicts ):
+  if not manager.checkConflicts( reader.name, reader.conflicts ):
     print 'Bailing.'
     return False
 
