@@ -19,7 +19,9 @@ ogroup.add_option( '-e', '--version', help='Version of Package', dest='version' 
 ogroup.add_option( '-c', '--description', help='Description of Package', dest='description' )
 ogroup.add_option( '-t', '--init-script', help='Init Script File', dest='init_script', metavar='FILENAME' )
 ogroup.add_option( '-d', '--data', help='Package Data/Contense root directory', dest='data', metavar='DIRNAME' )
-ogroup.add_option( '-f', '--conflicts-with', help='Package that cannot be installed if this one is (can be specified more than once)', metavar='PACKAGENAME', dest='conflicts_with', action='append' )
+ogroup.add_option( '-s', '--depends', help='Package that must be installed before this one (can be specified more than once)', metavar='PACKAGENAME', dest='depends', action='append' )
+ogroup.add_option( '-f', '--conflicts', help='Package that cannot be installed if this one is (can be specified more than once)', metavar='PACKAGENAME', dest='conflicts', action='append' )
+ogroup.add_option( '-p', '--provides', help='Package that this packages provides replcement/equivelent functionality (can be specified more than once)', metavar='PACKAGENAME', dest='provides', action='append' )
 oparser.add_option_group( ogroup )
 
 ogroup = optparse.OptionGroup( oparser, 'Package Installing', 'Install from local file with install(-i) or from a JSON repo with from-repo(-r)' )
@@ -67,6 +69,10 @@ def _install_file( file_name, target_dir, manager ):
   target_dir = os.path.realpath( target_dir )
 
   reader = RespkgReader( file_name )
+
+  if manager.checkDepends( reader.name, reader.depends ):
+    print 'Bailing.'
+    return False
 
   if manager.checkConflicts( reader.name, reader.conflicts ):
     print 'Bailing.'
@@ -121,7 +127,7 @@ def _install_file( file_name, target_dir, manager ):
     print 'WARNING: init returned %s' % rc
     return False
 
-  manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir, reader.conflicts )
+  manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir, reader.conflicts, reader.provides )
 
   return True
 
@@ -150,8 +156,14 @@ if options.build:
   builder.name = options.name
   builder.version = options.version
   builder.description = options.description
-  if options.conflicts_with:
-    builder.conflicts = options.conflicts_with
+  if options.depends:
+    builder.depends = options.depends
+
+  if options.conflicts:
+    builder.conflicts = options.conflicts
+
+  if options.provides:
+    builder.provides = options.provides
 
   if options.init_script:
     builder.setInit( open( options.init_script, 'r' ).read() )
@@ -162,7 +174,7 @@ if options.build:
 
 # all these options require the manager, I guess we can create the db now
 
-manager = RespkgManager()
+manager = RespkgManager() # TODO: don't make the database if we are going to fall thgough to the help_text anyway
 
 
 if options.list:
@@ -191,6 +203,7 @@ if options.check_installed:
     print '%s\t%s' % ( filename, 'Good' if sha256.hexdigest() == file_list[ filename ] else 'Bad' )
 
   sys.exit( 0 )
+
 
 if options.add_repo:
   if len( args ) < 3:
@@ -224,6 +237,7 @@ if options.set_key:
   manager.setKey( args[0], pub_key )
 
   sys.exit( 0 )
+
 
 if options.repo:
   if len( args ) < 1:
@@ -261,6 +275,7 @@ if options.install:
     sys.exit( 1 )
 
   sys.exit( 0 )
+
 
 oparser.print_help()
 sys.exit( 1 )

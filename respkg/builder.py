@@ -78,6 +78,19 @@ class RespkgBuilder( object ):
     self.control[ 'created' ] = value.isoformat()
 
   @property
+  def depends( self ):
+    return self.control.get( 'depends', [] )
+
+  @depends.setter
+  def depends( self, value ):
+    if isinstance( value, basestring ):
+      self.control[ 'depends' ] = [ value ]
+    elif isinstance( value, list ): #TODO: make sure every member of the list is a string
+      self.control[ 'depends' ] = value
+    else:
+      raise TypeError( 'depends must be a string or list' )
+
+  @property
   def conflicts( self ):
     return self.control.get( 'conflicts', [] )
 
@@ -89,6 +102,19 @@ class RespkgBuilder( object ):
       self.control[ 'conflicts' ] = value
     else:
       raise TypeError( 'conflicts must be a string or list' )
+
+  @property
+  def provides( self ):
+    return self.control.get( 'provides', [] )
+
+  @provides.setter
+  def provides( self, value ):
+    if isinstance( value, basestring ):
+      self.control[ 'provides' ] = [ value ]
+    elif isinstance( value, list ): #TODO: make sure every member of the list is a string
+      self.control[ 'provides' ] = value
+    else:
+      raise TypeError( 'provides must be a string or list' )
 
   def setInit( self, value ):
     self.init = value

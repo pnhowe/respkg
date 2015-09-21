@@ -8,17 +8,18 @@ import os
 
 STATE_DB_FILE_NAME = '/var/lib/respkg/manager.db'
 
-__VERSION__ = "0.1"
+__VERSION__ = '0.2'
 
 class RespkgManager( object ):
   def __init__( self ):
     self._checkDB( STATE_DB_FILE_NAME ) # check db before we connect to it
     self.conn = sqlite3.connect( STATE_DB_FILE_NAME )
 
-  def _checkDB( self, state_db ):
+  @staticmethod
+  def _checkDB( state_db ):
     conn = sqlite3.connect( state_db )
     cur = conn.cursor()
-    cur.execute( 'SELECT COUNT(*) FROM "sqlite_master" WHERE type="table" and name="control";' )
+    cur.execute( 'SELECT COUNT(*) FROM "sqlite_master" WHERE type = "table" and name = "control";' )
     ( count, ) = cur.fetchone()
     if count == 0:
       conn.execute( 'CREATE TABLE "control" ( "key" text, "value" text );' )
@@ -62,6 +63,13 @@ class RespkgManager( object ):
       conn.execute( """CREATE TABLE "conflicts" (
       "package" char(50) NOT NULL,
       "with" char(50) NOT NULL,
+      "created" datetime DEFAULT CURRENT_TIMESTAMP,
+      "modified" datetime DEFAULT CURRENT_TIMESTAMP
+    );""" )
+
+      conn.execute( """CREATE TABLE "provides" (
+      "package" char(50) NOT NULL,
+      "target" char(50) NOT NULL,
       "created" datetime DEFAULT CURRENT_TIMESTAMP,
       "modified" datetime DEFAULT CURRENT_TIMESTAMP
     );""" )
@@ -152,7 +160,7 @@ class RespkgManager( object ):
   def packageList( self ):
     result = {}
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "package", "version", "target_dir", "description", "installed", "pkg_created", "modified", "created" FROM "packages";'  )
+    cur.execute( 'SELECT "package", "version", "target_dir", "description", "installed", "pkg_created", "modified", "created" FROM "packages" ORDER BY "package";'  )
     for ( package, version, target_dir, description, installed, pkg_created, modified, created ) in cur.fetchall():
       result[ str( package ) ] = { 'version': str( version ), 'target_dir': str( target_dir ), 'description': str( description ), 'installed': installed, 'pkg_created': pkg_created, 'modified': modified, 'created': created }
 
@@ -160,7 +168,7 @@ class RespkgManager( object ):
 
     return result
 
-  def packageInstalled( self, name, version, description, pkg_created, target_dir, conflict_list ):
+  def packageInstalled( self, name, version, description, pkg_created, target_dir, conflict_list, provides_list ):
     cur = self.conn.cursor()
     cur.execute( 'SELECT COUNT(*) FROM "packages" WHERE "package" = ?;', ( name, ) )
     ( count, ) = cur.fetchone()
@@ -171,23 +179,44 @@ class RespkgManager( object ):
       cur.execute( 'UPDATE "packages" SET "version"=?, "target_dir"=?, "description"=?, "pkg_created"=?, "installed"=CURRENT_TIMESTAMP, "modified"=CURRENT_TIMESTAMP WHERE "package"=?;', ( version, target_dir, description, pkg_created, name ) )
 
     cur.execute( 'DELETE FROM "conflicts" WHERE "package" = ?;', ( name, ) )
+    cur.execute( 'DELETE FROM "provides" WHERE "package" = ?;', ( name, ) )
 
     for conflict in conflict_list:
       cur.execute( 'INSERT INTO "conflicts" ( "package", "with" ) VALUES ( ?, ? );', ( name, conflict ) )
 
+    for provides in provides_list:
+      cur.execute( 'INSERT INTO "provides" ( "package", "target" ) VALUES ( ?, ? );', ( name, provides ) )
+
     cur.close()
     self.conn.commit()
 
+  def checkDepends( self, name, depends_list ):
+    cur = self.conn.cursor()
+    cur.execute( 'SELECT "package" FROM "packages" ORDER BY "package";' )
+    target_list = [ i[0] for i in cur.fetchall() ]
+
+    cur.execute( 'SELECT "target" from "provides" ORDER BY "target";' )
+    target_list += [ i[0] for i in cur.fetchall() ]
+
+    cur.close()
+
+    missing = set( depends_list ) - set( target_list )
+    if missing:
+      print 'ERROR: Package "%s" depends on these not installed/provided packages: "%s"' % ( name, '", "'.join( missing ) )
+      return False
+
+    return True
+
   def checkConflicts( self, name, conflict_list ):
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ?;', ( name, ) )
+    cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ? ORDER BY "package";', ( name, ) )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print 'ERROR: Package "%s" conflicted by package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
       cur.close()
       return True
 
-    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN (%s);' % ','.join( '?' * len( conflict_list ) ), conflict_list )
+    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN (%s) ORDER BY "package";' % ','.join( '?' * len( conflict_list ) ), conflict_list )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print 'ERROR: Package "%s" conflicts with package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
@@ -214,7 +243,7 @@ class RespkgManager( object ):
   def getInstalledPackages( self ):
     result = []
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "package" FROM "packages";' )
+    cur.execute( 'SELECT "package" FROM "packages" ORDER BY "package";' )
     result = [ i[0] for i in cur.fetchall() ]
     cur.close()
     return result
@@ -223,9 +252,9 @@ class RespkgManager( object ):
     result = []
     cur = self.conn.cursor()
     if exclude:
-      cur.execute( 'SELECT "file_path" FROM "files" WHERE "package" != ?;', ( exclude, ) )
+      cur.execute( 'SELECT "file_path" FROM "files" WHERE "package" != ? ORDER BY "file_path";', ( exclude, ) )
     else:
-      cur.execute( 'SELECT "file_path" FROM "files";' )
+      cur.execute( 'SELECT "file_path" FROM "files" ORDER BY "file_path";' )
 
     result = [ i[0] for i in cur.fetchall() ]
     cur.close()
@@ -250,7 +279,7 @@ class RespkgManager( object ):
   def getFileChecksums( self ):
     result = {}
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "file_path", "sha256", "target_dir" from "files" LEFT OUTER JOIN "packages" ON "files"."package" = "packages"."package";')
+    cur.execute( 'SELECT "file_path", "sha256", "target_dir" from "files" LEFT OUTER JOIN "packages" ON "files"."package" = "packages"."package" ORDER BY "file_path";')
     for ( file_path, sha256, target_dir ) in cur.fetchall():
       result[ os.path.join( target_dir, file_path ) ] = sha256
 
@@ -319,7 +348,7 @@ class RespkgManager( object ):
   def repoList( self ):
     result = {}
     cur = self.conn.cursor()
-    cur.execute( 'SELECT "name", "url", "component", "pub_key", "proxy", "modified", "created" from "repos";' )
+    cur.execute( 'SELECT "name", "url", "component", "pub_key", "proxy", "modified", "created" from "repos" ORDER BY "name";' )
     for ( name, url, component, pub_key, proxy, modified, created ) in cur.fetchall():
       result[ str( name ) ] = { 'url': str( url ), 'component': str( component ), 'has_key': bool( pub_key ), 'proxy': str( proxy ), 'modified': modified, 'created': created }
 

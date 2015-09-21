@@ -16,6 +16,21 @@ full-clean: clean
 	$(RM) -f dpkg-setup
 	$(RM) -f rpm-setup
 
+test-distros:
+	echo trusty
+
+test-requires:
+	echo python-pytest
+
+test:
+	cd tests && py.test -x manager.py
+
+lint-requires:
+	echo linter
+
+lint:
+	linter
+
 dpkg-distros:
 	echo precise trusty
 

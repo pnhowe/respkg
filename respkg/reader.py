@@ -30,8 +30,16 @@ class RespkgReader( object ):
     return self.control.get( 'created', datetime( 1980, 1, 1 ) )
 
   @property
+  def depends( self ):
+    return self.control.get( 'depends', [] )
+
+  @property
   def conflicts( self ):
     return self.control.get( 'conflicts', [] )
+
+  @property
+  def provides( self ):
+    return self.control.get( 'provides', [] )
 
   def readInit( self ):
     return self.source.extractfile( './INIT' ).read()
