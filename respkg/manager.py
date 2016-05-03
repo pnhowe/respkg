@@ -100,6 +100,7 @@ class RespkgManager( object ):
 
     except urllib2.URLError, e:
       print 'URLError Requesting "%s", "%s"' % ( path, e.reason )
+      return None
 
     except httplib.HTTPException, e:
       print 'HTTPException Requesting "%s", "%s"' % ( path, e.message )
