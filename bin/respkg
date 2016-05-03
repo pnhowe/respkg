@@ -100,7 +100,7 @@ def _install_file( file_name, target_dir, manager ):
   if prev[ 'version' ] != reader.version:
     print 'Upgrading from "%s" to "%s"' % ( prev[ 'version' ], reader.version )
   else:
-    print 'Re-Installing versino "%s"' % reader.version
+    print 'Re-Installing version "%s"' % reader.version
 
   filename_list = reader.getFileList()
 
