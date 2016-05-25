@@ -12,7 +12,7 @@ class RespkgBuilder( object ):
                      'respkg_version': '1',
                      'created': datetime.utcnow().isoformat()
                    }
-    self.init = ''
+    self.init = None
     self.data = None
 
   def write( self, file_name ):
@@ -33,10 +33,11 @@ class RespkgBuilder( object ):
     info.size = buff.len
     tar.addfile( tarinfo=info, fileobj=buff )
 
-    buff = StringIO( self.init )
-    info = TarInfo( name='./INIT' )
-    info.size = buff.len
-    tar.addfile( tarinfo=info, fileobj=buff )
+    if self.init is not None:
+      buff = StringIO( self.init )
+      info = TarInfo( name='./INIT' )
+      info.size = buff.len
+      tar.addfile( tarinfo=info, fileobj=buff )
 
     info = TarInfo( name='./DATA' )
     info.size = data.len

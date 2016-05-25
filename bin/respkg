@@ -80,7 +80,7 @@ def _install_file( file_name, target_dir, manager ):
 
   prev = manager.getPackage( reader.name )
   if prev:
-    if prev[ 'version' ] > reader.version:
+    if prev[ 'version' ] > reader.version: # TODO: split by '.' and compare as numbers
       print 'WARNING: Previosully install package has a greater version number.'
       if not _continue_prompt():
         print 'Bailing.'
@@ -113,19 +113,25 @@ def _install_file( file_name, target_dir, manager ):
     print 'Bailing.'
     return False
 
-  init = open( INIT_FILE_PATH, 'w' )
-  init.write( reader.readInit() )
-  init.close()
-  os.chmod( INIT_FILE_PATH, 0755 )
+  initfile = None
+  initscript = reader.readInit()
+  if initscript is not None: #TODO: replace INIT_FILE_PATH with a tmpfile
+    init = open( INIT_FILE_PATH, 'w' )
+    init.write( reader.readInit() )
+    init.close()
+    os.chmod( INIT_FILE_PATH, 0755 )
+
+    initfile = INIT_FILE_PATH
 
   reader.extract( target_dir, _updatesha )
 
-  rc = subprocess.call( [ INIT_FILE_PATH, target_dir, reader.version, prev[ 'version' ] ] )
-  os.unlink( INIT_FILE_PATH )
+  if initfile is not None:
+    rc = subprocess.call( [ initfile, target_dir, reader.version, prev[ 'version' ] ] )
+    os.unlink( initfile )
 
-  if rc != 0:
-    print 'WARNING: init returned %s' % rc
-    return False
+    if rc != 0:
+      print 'WARNING: init returned %s' % rc
+      return False
 
   manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir, reader.conflicts, reader.provides )
 

@@ -42,7 +42,10 @@ class RespkgReader( object ):
     return self.control.get( 'provides', [] )
 
   def readInit( self ):
-    return self.source.extractfile( './INIT' ).read()
+    try:
+      return self.source.extractfile( './INIT' ).read()
+    except KeyError:
+      return None
 
   def getFileList( self ):
     results = []
