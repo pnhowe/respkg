@@ -1,3 +1,3 @@
-from builder import RespkgBuilder # noqa
-from reader import RespkgReader # noqa
-from manager import RespkgManager, __VERSION__ # noqa
+from respkg.builder import RespkgBuilder # noqa
+from respkg.reader import RespkgReader # noqa
+from respkg.manager import RespkgManager, __VERSION__ # noqa
