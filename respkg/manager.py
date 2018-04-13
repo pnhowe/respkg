@@ -1,18 +1,18 @@
-import urllib2
-import httplib
 import socket
 import json
 import sqlite3
 import hashlib
 import os
+from urllib import request
 
 STATE_DB_FILE_NAME = '/var/lib/respkg/manager.db'
 
 __VERSION__ = '0.2'
 
+
 class RespkgManager( object ):
   def __init__( self ):
-    self._checkDB( STATE_DB_FILE_NAME ) # check db before we connect to it
+    self._checkDB( STATE_DB_FILE_NAME )  # check db before we connect to it
     self.conn = sqlite3.connect( STATE_DB_FILE_NAME )
 
   @staticmethod
@@ -80,34 +80,30 @@ class RespkgManager( object ):
 
   def _getHTTP( self, path, proxy, target_file=None ):
     if proxy:
-      opener = urllib2.build_opener( urllib2.ProxyHandler( { 'http': proxy, 'https': proxy } ) )
+      opener = request.build_opener( request.ProxyHandler( { 'http': proxy, 'https': proxy } ) )
     else:
-      opener = urllib2.build_opener( urllib2.ProxyHandler( {} ) ) # no proxying, not matter what is in the enviornment
+      opener = request.build_opener( request.ProxyHandler( {} ) )  # no proxying, not matter what is in the enviornment
 
-    opener.addheaders = [ ( 'User-agent', 'respkg %s' % __VERSION__ ) ]
+    opener.addheaders = [ ( 'User-agent', 'respkg {0}'.format( __VERSION__ ) ) ]
 
     try:
       resp = opener.open( path )
 
-    except urllib2.HTTPError, e:
+    except request.HTTPError as e:
       if e.code == 404:
-        print '"%s" not found' % path
+        print( '"{0}" not found'.format( path ) )
         return None
 
       if e.code == 500:
-        print 'Server Error retreiving "%s"' % path
+        print( 'Server Error retreiving "{0}"'.format( path ) )
         return None
 
-    except urllib2.URLError, e:
-      print 'URLError Requesting "%s", "%s"' % ( path, e.reason )
-      return None
-
-    except httplib.HTTPException, e:
-      print 'HTTPException Requesting "%s", "%s"' % ( path, e.message )
+    except request.URLError as e:
+      print( 'URLError Requesting "{0}", "{1}"'.format( path, e.reason ) )
       return None
 
     except socket.error as e:
-      print 'Socket Error Requesting "%s", errno: %s, "%s"' % ( path, e.errno, e.message )
+      print( 'Socket Error Requesting "{0}", errno: "{1}", "{2}"'.format( path, e.errno, e.message ) )
       return None
 
     if target_file:
@@ -122,7 +118,7 @@ class RespkgManager( object ):
       return resp.read()
 
   def _getManafest( self, url, component, proxy ):
-    path = '%s/_repo_%s/MANIFEST_none--all.json' % ( url, component )
+    path = os.path.join( url, '_repo_{0}'.format( component ), 'MANIFEST_none--all.json' )
     manifest = self._getHTTP( path, proxy )
     if manifest is None:
       return None
@@ -132,7 +128,7 @@ class RespkgManager( object ):
     try:
       manifest = json.loads( manifest )
     except ValueError:
-      print 'Manafest at "%s" is not valid JSON' % path
+      print( 'Manafest at "{0}" is not valid JSON'.format( path ) )
       return None
 
     for package in manifest:
@@ -148,7 +144,7 @@ class RespkgManager( object ):
     return result
 
   def _getPackageFile( self, repo_url, file_path, proxy ):
-    path = '%s/%s' % ( repo_url, file_path )
+    path = os.path.join( repo_url, file_path )
     tmpfile = open( '/tmp/respkgdownload.tmp', 'w' )
     rc = self._getHTTP( path, proxy, tmpfile )
     if rc is None:
@@ -191,7 +187,7 @@ class RespkgManager( object ):
     cur.close()
     self.conn.commit()
 
-  def checkDepends( self, name, depends_list ): # true -> ok to install, ie dependancies met
+  def checkDepends( self, name, depends_list ):  # true -> ok to install, ie dependancies met
     cur = self.conn.cursor()
     cur.execute( 'SELECT "package" FROM "packages" ORDER BY "package";' )
     target_list = [ i[0] for i in cur.fetchall() ]
@@ -203,24 +199,24 @@ class RespkgManager( object ):
 
     missing = set( depends_list ) - set( target_list )
     if missing:
-      print 'ERROR: Package "%s" depends on these not installed/provided packages: "%s"' % ( name, '", "'.join( missing ) )
+      print( 'ERROR: Package "{0}" depends on these not installed/provided packages: "{1}"'.format( name, '", "'.join( missing ) ) )
       return False
 
     return True
 
-  def checkConflicts( self, name, conflict_list ): # true -> ok to install, ie no conflicts
+  def checkConflicts( self, name, conflict_list ):  # true -> ok to install, ie no conflicts
     cur = self.conn.cursor()
     cur.execute( 'SELECT "package" FROM "conflicts" WHERE "with" = ? ORDER BY "package";', ( name, ) )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
-      print 'ERROR: Package "%s" conflicted by package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
+      print( 'ERROR: Package "{0}" conflicted by package(s) allready installed "{1}"'.format( name, '", "'.join( conflict_list ) ) )
       cur.close()
       return False
 
-    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN (%s) ORDER BY "package";' % ','.join( '?' * len( conflict_list ) ), conflict_list )
+    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN ({0}) ORDER BY "package";'.format( ','.join( '?' * len( conflict_list ) ), conflict_list ) )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
-      print 'ERROR: Package "%s" conflicts with package(s) allready installed "%s"' % ( name, '", "'.join( conflict_list ) )
+      print( 'ERROR: Package "{0}" conflicts with package(s) allready installed "{1}"'.format( name, '", "'.join( conflict_list ) ) )
       cur.close()
       return False
 
@@ -268,7 +264,7 @@ class RespkgManager( object ):
     cur.execute( 'SELECT COUNT(*) FROM "files" WHERE "file_path" = ?;', ( file_path, ) )
 
     ( count, ) = cur.fetchone()
-    if count: #TODO: check to make sure the package didn't change when doing an update
+    if count:  # TODO: check to make sure the package didn't change when doing an update
       cur.execute( 'UPDATE "files" SET "sha256" = ?, "modified" = CURRENT_TIMESTAMP WHERE "file_path" = ?;', ( sha256, file_path ) )
 
     else:
@@ -288,7 +284,7 @@ class RespkgManager( object ):
 
   def addRepo( self, name, url, component, proxy ):
     if self._getManafest( url, component, proxy ) is None:
-      print 'Error adding repo'
+      print( 'Error adding repo' )
       return None
 
     cur = self.conn.cursor()
@@ -296,7 +292,7 @@ class RespkgManager( object ):
     ( count, ) = cur.fetchone()
     if count == 1:
       cur.close()
-      raise Exception( 'repo name "%s" allready in use' % name )
+      raise Exception( 'repo name "{0}" allready in use'.format( name ) )
 
     cur.execute( 'INSERT INTO "repos" ( "name", "url", "component", "proxy" ) VALUES ( ?, ?, ?, ? );', ( name, url, component, proxy ) )
 
@@ -309,7 +305,7 @@ class RespkgManager( object ):
     ( count, ) = cur.fetchone()
     if count != 1:
       cur.close()
-      raise Exception( 'repo named "%s" not found' )
+      raise Exception( 'repo named "{0}" not found'.format( name ) )
 
     cur.execute( 'UPDATE "repos" SET "pub_key"="?" WHERE "name"="?";', ( name, pub_key ) )
 
@@ -322,7 +318,7 @@ class RespkgManager( object ):
     try:
       ( repo_url, component, proxy, pub_key ) = cur.fetchone()
     except TypeError:
-      print 'Repo "%s" not known.' % repo_name
+      print( 'Repo "{0}" not known.'.format( repo_name ) )
       cur.close()
       return None
 
@@ -332,7 +328,7 @@ class RespkgManager( object ):
     try:
       package = manafest[ package_name ]
     except KeyError:
-      print 'Package "%s" not found in manafest' % package_name
+      print( 'Package "{0}" not found in manafest'.format( package_name ) )
       return None
 
     version = max( package.keys() )
@@ -341,7 +337,7 @@ class RespkgManager( object ):
     sha256 = hashlib.sha256()
     sha256.update( open( local_file, 'r' ).read() )
     if package[ version ][ 'sha256' ] != sha256.hexdigest():
-      print 'SHA256 of downloaded file dose not match manifest'
+      print( 'SHA256 of downloaded file dose not match manifest' )
       return None
 
     return local_file

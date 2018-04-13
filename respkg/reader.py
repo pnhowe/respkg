@@ -1,15 +1,14 @@
 import os
 import json
 from datetime import datetime
-from StringIO import StringIO
 from gzip import GzipFile
 from tarfile import TarFile
 
 
 class RespkgReader( object ):
   def __init__( self, file_name ):
-    toptar = GzipFile( file_name, 'r' ).read()
-    self.source = TarFile( fileobj=StringIO( toptar ) )
+    tar = GzipFile( file_name, 'r' )
+    self.source = TarFile( fileobj=tar )
 
     self.control = json.loads( self.source.extractfile( './CONTROL' ).read() )
 

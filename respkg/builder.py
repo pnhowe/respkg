@@ -1,9 +1,9 @@
 import json
 import os
 from datetime import datetime
-from StringIO import StringIO
 from gzip import GzipFile
 from tarfile import TarFile, TarInfo
+from io import StringIO
 
 
 class RespkgBuilder( object ):

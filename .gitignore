@@ -1,2 +1,5 @@
 *.pyc
 *.rpkg
+
+.ropeproject
+respkg.egg-info

@@ -1,15 +1,17 @@
-#!/usr/bin/python -u
+#!/usr/bin/env python3
+
 import sys
 import os
 import optparse
 import subprocess
 import hashlib
+import stat
 
 from respkg import RespkgBuilder, RespkgReader, RespkgManager, __VERSION__
 
 INIT_FILE_PATH = '/tmp/respkg.init'
 
-oparser = optparse.OptionParser( description='respkg installer/manager/builder, version: %s' % __VERSION__ )
+oparser = optparse.OptionParser( description='respkg installer/manager/builder, version: {0}'.format( __VERSION__ ) )
 oparser.add_option( '-y', '--yes', help='Assume "yes" for Questions', action='store_true' )
 
 ogroup = optparse.OptionGroup( oparser, 'Package Building', 'name(-n) and version(-v) are required.' )
@@ -41,11 +43,12 @@ oparser.add_option_group( ogroup )
 
 # do build first, it's dosen't require manager, so don't leave the db behind
 
+
 def _continue_prompt():
   if options.yes:
     return True
 
-  if not sys.stdin.isatty() or not sys.stdout.isatty(): # non interactive, fail
+  if not sys.stdin.isatty() or not sys.stdout.isatty():  # non interactive, fail
     return False
 
   tmp = raw_input( 'Continue? (Y/N):' )
@@ -55,6 +58,7 @@ def _continue_prompt():
   else:
     return False
 
+
 def _updatesha( package, file_path ):
   sha256 = hashlib.sha256()
   sha256.update( open( file_path, 'r' ).read() )
@@ -63,7 +67,7 @@ def _updatesha( package, file_path ):
 
 def _install_file( file_name, target_dir, manager ):
   if not os.path.isdir( target_dir ):
-    print 'Target dir "%s" does not exist or is not a directory.' % target_dir
+    print( 'Target dir "{0}" does not exist or is not a directory.'.format( target_dir ) )
     return False
 
   target_dir = os.path.realpath( target_dir )
@@ -71,36 +75,36 @@ def _install_file( file_name, target_dir, manager ):
   reader = RespkgReader( file_name )
 
   if not manager.checkDepends( reader.name, reader.depends ):
-    print 'Bailing.'
+    print( 'Bailing.' )
     return False
 
   if not manager.checkConflicts( reader.name, reader.conflicts ):
-    print 'Bailing.'
+    print( 'Bailing.' )
     return False
 
   prev = manager.getPackage( reader.name )
   if prev:
-    if prev[ 'version' ] > reader.version: # TODO: split by '.' and compare as numbers
-      print 'WARNING: Previosully install package has a greater version number.'
+    if prev[ 'version' ] > reader.version:  # TODO: split by '.' and compare as numbers
+      print( 'WARNING: Previosully install package has a greater version number.' )
       if not _continue_prompt():
-        print 'Bailing.'
+        print( 'Bailing.' )
         return False
 
     if target_dir != prev[ 'target_dir' ]:
-      print 'WARNING: Installing to diffrent target directory than last time.'
-      print 'Previous Install Location: "%s"' % prev[ 'target_dir' ]
-      print 'Curent Install Location: "%s"' % target_dir
+      print( 'WARNING: Installing to diffrent target directory than last time.' )
+      print( 'Previous Install Location: "{0}"'.format( prev[ 'target_dir' ] ) )
+      print( 'Curent Install Location: "{0}"'.format( target_dir ) )
       if not _continue_prompt():
-        print 'Bailing.'
+        print( 'Bailing.' )
         return False
 
   else:
     prev = { 'version': '*NEW*' }
 
   if prev[ 'version' ] != reader.version:
-    print 'Upgrading from "%s" to "%s"' % ( prev[ 'version' ], reader.version )
+    print( 'Upgrading from "{0}" to "{1}"'.format( prev[ 'version' ], reader.version ) )
   else:
-    print 'Re-Installing version "%s"' % reader.version
+    print( 'Re-Installing version "{0}"'.format( reader.version ) )
 
   filename_list = reader.getFileList()
 
@@ -108,18 +112,18 @@ def _install_file( file_name, target_dir, manager ):
 
   common_list = set( filename_list ) & set( installed_list )
   if common_list:
-    print 'ERROR: these files are allready installed by another package:'
-    print '\n'.join( common_list )
-    print 'Bailing.'
+    print( 'ERROR: these files are allready installed by another package:' )
+    print( '\n'.join( common_list ) )
+    print( 'Bailing.' )
     return False
 
   initfile = None
   initscript = reader.readInit()
-  if initscript is not None: #TODO: replace INIT_FILE_PATH with a tmpfile
+  if initscript is not None:  # TODO: replace INIT_FILE_PATH with a tmpfile
     init = open( INIT_FILE_PATH, 'w' )
     init.write( reader.readInit() )
     init.close()
-    os.chmod( INIT_FILE_PATH, 0755 )
+    os.chmod( INIT_FILE_PATH, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IRGRP | stat.S_IXGRP )
 
     initfile = INIT_FILE_PATH
 
@@ -130,7 +134,7 @@ def _install_file( file_name, target_dir, manager ):
     os.unlink( initfile )
 
     if rc != 0:
-      print 'WARNING: init returned %s' % rc
+      print( 'WARNING: init returned "{0}"'.format( rc ) )
       return False
 
   manager.packageInstalled( reader.name, reader.version, reader.description, reader.created, options.target_dir, reader.conflicts, reader.provides )
@@ -144,17 +148,17 @@ if options.build:
     sys.exit( 1 )
 
   if options.init_script and not os.path.isfile( options.init_script ):
-    print 'Init Script "%s" does not exists or is not a file.' % options.init_script
+    print( 'Init Script "{0}" does not exists or is not a file.'.format( options.init_script ) )
     sys.exit( 1 )
 
   if not os.path.isdir( options.data ):
-    print 'Data "%s" is not a directory.' % options.data
+    print( 'Data "{0}" is not a directory.'.format( options.data ) )
     sys.exit( 1 )
 
   if not options.description or not options.init_script:
-    print 'WARNING: Description and/or Init Script not Specified'
+    print( 'WARNING: Description and/or Init Script not Specified' )
     if not _continue_prompt():
-      print 'Bailing.'
+      print( 'Bailing.' )
       sys.exit( 1 )
 
   builder = RespkgBuilder()
@@ -180,23 +184,23 @@ if options.build:
 
 # all these options require the manager, I guess we can create the db now
 
-manager = RespkgManager() # TODO: don't make the database if we are going to fall thgough to the help_text anyway
+manager = RespkgManager()  # TODO: don't make the database if we are going to fall thgough to the help_text anyway
 
 
 if options.list:
   repo_map = manager.repoList()
-  print 'Repo\tURL\tComponent\tProxy\tHas Key'
+  print( 'Repo\tURL\tComponent\tProxy\tHas Key' )
   for repo in repo_map:
     item = repo_map[ repo ]
-    print '%s\t%s\t%s\t%s\t%s' % ( repo, item[ 'url' ], item[ 'component'], item[ 'proxy' ], item[ 'has_key' ] )
+    print( '{0}\t{1}\t{2}\t{3}\t{4}'.format( repo, item[ 'url' ], item[ 'component'], item[ 'proxy' ], item[ 'has_key' ] ) )
 
   print
 
   package_map = manager.packageList()
-  print 'Package\tVersion\tInstalled\t\tPkg Created\t\tTarget Dir\tDescription'
+  print( 'Package\tVersion\tInstalled\t\tPkg Created\t\tTarget Dir\tDescription' )
   for package in package_map:
     item = package_map[ package ]
-    print '%s\t%s\t%s\t%s\t%s\t%s' % ( package, item[ 'version' ], item[ 'installed' ], item[ 'pkg_created' ], item[ 'target_dir' ], item[ 'description' ] )
+    print( '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format( package, item[ 'version' ], item[ 'installed' ], item[ 'pkg_created' ], item[ 'target_dir' ], item[ 'description' ] ) )
 
   sys.exit( 0 )
 
@@ -206,7 +210,7 @@ if options.check_installed:
   for filename in file_list:
     sha256 = hashlib.sha256()
     sha256.update( open( filename, 'r' ).read() )
-    print '%s\t%s' % ( filename, 'Good' if sha256.hexdigest() == file_list[ filename ] else 'Bad' )
+    print( '{0}\t{1}'.format( filename, 'Good' if sha256.hexdigest() == file_list[ filename ] else 'Bad' ) )
 
   sys.exit( 0 )
 
@@ -235,7 +239,7 @@ if options.set_key:
 
   else:
     if not os.path.isfile( keyfile ):
-      print 'Key File "%s" does not exist or is not a file.' % keyfile
+      print( 'Key File "{0}" does not exist or is not a file.'.format( keyfile ) )
       sys.exit( 1 )
 
     pub_key = open( keyfile, 'r' ).read()
@@ -260,7 +264,7 @@ if options.repo:
   for package in args:
     tempfile = manager.getPackageFile( options.repo, package, version )
     if tempfile is None:
-      print 'Error installing from repo'
+      print( 'Error installing from repo' )
       sys.exit( 1 )
 
     rc &= _install_file( tempfile, options.target_dir, manager )
@@ -274,7 +278,7 @@ if options.repo:
 
 if options.install:
   if not os.path.isfile( options.install ):
-    print 'Package "%s" is does not exist or is not a file.' % options.install
+    print( 'Package "{0}" is does not exist or is not a file.'.format( ptions.install ) )
     sys.exit( 1 )
 
   if not _install_file( options.install, options.target_dir, manager ):
