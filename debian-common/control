@@ -8,6 +8,6 @@ Standards-Version: 3.8.3
 
 Package: respkg
 Architecture: all
-Depends: python3 (>= 3.4), ${shlibs:Depends}, ${misc:Depends}
+Depends: python3 (>= 3.4), ${misc:Depends}, ${python3:Depends}
 Description: RESsource PacKaGe
   RESsource PacKaGe
