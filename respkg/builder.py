@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from gzip import GzipFile
 from tarfile import TarFile, TarInfo
-from io import StringIO
+from io import BytesIO
 
 
 class RespkgBuilder( object ):
@@ -19,28 +19,28 @@ class RespkgBuilder( object ):
     if not self.data or not os.path.isdir( self.data ):
       raise Exception( 'Must set data before building' )
 
-    data = StringIO()
+    gzfile = GzipFile( file_name, 'w' )
+    tar = TarFile( fileobj=gzfile, mode='w' )
+
+    buff = BytesIO( json.dumps( self.control ).encode() )
+    info = TarInfo( name='./CONTROL' )
+    info.size = buff.getbuffer().nbytes
+    tar.addfile( tarinfo=info, fileobj=buff )
+
+    if self.init is not None:
+      buff = BytesIO( self.init.encode() )
+      info = TarInfo( name='./INIT' )
+      info.size = buff.getbuffer().nbytes
+      tar.addfile( tarinfo=info, fileobj=buff )
+
+    data = BytesIO()
     datatar = TarFile( fileobj=data, mode='w' )
     datatar.add( self.data, '/' )
     datatar.close()
     data.seek( 0 )
 
-    gzfile = GzipFile( file_name, 'w' )
-    tar = TarFile( fileobj=gzfile, mode='w' )
-
-    buff = StringIO( json.dumps( self.control ) )
-    info = TarInfo( name='./CONTROL' )
-    info.size = buff.len
-    tar.addfile( tarinfo=info, fileobj=buff )
-
-    if self.init is not None:
-      buff = StringIO( self.init )
-      info = TarInfo( name='./INIT' )
-      info.size = buff.len
-      tar.addfile( tarinfo=info, fileobj=buff )
-
     info = TarInfo( name='./DATA' )
-    info.size = data.len
+    info.size = data.getbuffer().nbytes
     tar.addfile( tarinfo=info, fileobj=data )
 
     tar.close()

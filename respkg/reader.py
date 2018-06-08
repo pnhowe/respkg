@@ -10,7 +10,7 @@ class RespkgReader( object ):
     tar = GzipFile( file_name, 'r' )
     self.source = TarFile( fileobj=tar )
 
-    self.control = json.loads( self.source.extractfile( './CONTROL' ).read() )
+    self.control = json.loads( self.source.extractfile( './CONTROL' ).read().decode() )
 
   @property
   def name( self ):
@@ -42,7 +42,7 @@ class RespkgReader( object ):
 
   def readInit( self ):
     try:
-      return self.source.extractfile( './INIT' ).read()
+      return self.source.extractfile( './INIT' ).read().decode()
     except KeyError:
       return None
 
