@@ -1,0 +1,8 @@
+*.pyc
+*.rpkg
+debian
+dpkg
+build
+
+.ropeproject
+respkg.egg-info

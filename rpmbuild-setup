@@ -1,0 +1,52 @@
+#!/bin/sh
+set -e
+set -x
+
+DISTRO_RELEASE="el$(lsb_release -sr | awk -F "." '{ print $1 }')_1"
+
+DEB_RELEASE="$( head debian-common/changelog -n1 | sed 's/.*(\([^)]*\)).*/\1/' )"
+RELEASE="$( echo "$DEB_RELEASE" | cut -d '-' -f2 )"
+VERSION="$( echo "$DEB_RELEASE" | cut -d '-' -f1 )"
+
+echo "Setting up for '$DISTRO_RELEASE' Version: '$VERSION' Release: '$RELEASE'"
+
+TOPDIR="$( pwd )/rpmbuild"
+SRCDIR="$( pwd )"
+
+mkdir -p "$TOPDIR"
+mkdir -p "$TOPDIR/RPMS"
+mkdir -p "$TOPDIR/BUILD"
+mkdir -p "$TOPDIR/BUILDROOT"
+
+cat > rpmbuild/config.spec <<SPECFILE
+%define _topdir $TOPDIR
+%define _srcdir $SRCDIR
+
+Name:           respkg
+Summary:        RESource PacKaGe
+Version:        $VERSION
+Release:        $RELEASE.$DISTRO_RELEASE
+License:        Nonfree
+Group:          nonfree/rubicon
+Requires:       python, python-simplejson
+BuildArch:      noarch
+
+%description
+respkg - RESource PacKaGe
+
+%install
+cd %{_srcdir}
+./setup.py build
+./setup.py install --prefix=%{buildroot}/usr
+make install DESTDIR=%{buildroot}/
+
+%files
+/*
+
+%changelog
+
+%post
+
+%postun
+
+SPECFILE
