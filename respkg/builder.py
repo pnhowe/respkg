@@ -84,9 +84,9 @@ class RespkgBuilder( object ):
 
   @depends.setter
   def depends( self, value ):
-    if isinstance( value, basestring ):
+    if isinstance( value, str ):
       self.control[ 'depends' ] = [ value ]
-    elif isinstance( value, list ): #TODO: make sure every member of the list is a string
+    elif isinstance( value, list ):  # TODO: make sure every member of the list is a string
       self.control[ 'depends' ] = value
     else:
       raise TypeError( 'depends must be a string or list' )
@@ -97,9 +97,9 @@ class RespkgBuilder( object ):
 
   @conflicts.setter
   def conflicts( self, value ):
-    if isinstance( value, basestring ):
+    if isinstance( value, str ):
       self.control[ 'conflicts' ] = [ value ]
-    elif isinstance( value, list ): #TODO: make sure every member of the list is a string
+    elif isinstance( value, list ):  # TODO: make sure every member of the list is a string
       self.control[ 'conflicts' ] = value
     else:
       raise TypeError( 'conflicts must be a string or list' )
@@ -110,9 +110,9 @@ class RespkgBuilder( object ):
 
   @provides.setter
   def provides( self, value ):
-    if isinstance( value, basestring ):
+    if isinstance( value, str ):
       self.control[ 'provides' ] = [ value ]
-    elif isinstance( value, list ): #TODO: make sure every member of the list is a string
+    elif isinstance( value, list ):  # TODO: make sure every member of the list is a string
       self.control[ 'provides' ] = value
     else:
       raise TypeError( 'provides must be a string or list' )
