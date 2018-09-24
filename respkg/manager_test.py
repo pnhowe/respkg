@@ -4,12 +4,14 @@ from respkg import manager
 
 TEST_DB_PATH = '/tmp/respkg_manager_test.db'
 
+
 def _init_workspace():
   manager.STATE_DB_FILE_NAME = TEST_DB_PATH
   try:
     os.unlink( TEST_DB_PATH )
-  except:
+  except Exception:
     pass
+
 
 def _dump_tables():
   conn = sqlite3.connect( TEST_DB_PATH )
@@ -33,6 +35,7 @@ def _dump_tables():
 
   return result
 
+
 def test_tableinit():
   _init_workspace()
   conn = sqlite3.connect( TEST_DB_PATH )
@@ -44,7 +47,7 @@ def test_tableinit():
   conn = sqlite3.connect( TEST_DB_PATH )
   dump = '\n'.join( conn.iterdump() )
   conn.close()
-  print dump
+
   assert dump == """BEGIN TRANSACTION;
 CREATE TABLE "conflicts" (
       "package" char(50) NOT NULL,
@@ -88,6 +91,7 @@ CREATE TABLE "repos" (
     );
 COMMIT;"""
 
+
 def test_installing():
   _init_workspace()
   rmgr = manager.RespkgManager()
@@ -103,7 +107,7 @@ def test_installing():
                              'repos': [] }
 
   assert rmgr.getInstalledPackages() == [ 'thepackage' ]
-  #TODO test rmgr.packageList and getPackage, going to have to deal with the date time stamps
+  # TODO test rmgr.packageList and getPackage, going to have to deal with the date time stamps
 
   rmgr.packageInstalled( 'otherpackage', '10.3-123', 'Other Package', 0, '/tmp', [], [] )
 
@@ -236,10 +240,3 @@ def test_depends():
 
 def test_repos():
   _init_workspace()
-
-
-if __name__ == '__main__':
-  print 'best when executed like: py.test -x %s' % __file__
-  for i in dir():
-    if i.startswith( 'test_' ):
-      globals()[i]()

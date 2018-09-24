@@ -17,22 +17,19 @@ full-clean: clean
 	$(RM) -f rpm-setup
 
 test-distros:
-	echo trusty
+	echo ubuntu-xenial
 
 test-requires:
-	echo python-pytest
+	echo flake8 python3-pytest python3-pytest-cov
 
 test:
-	cd tests && py.test -x manager.py
-
-lint-requires:
-	echo linter
+	py.test-3 --cov=respkg --cov-report html --cov-report term -x
 
 lint:
-	linter
+	flake8 --ignore=E501,E201,E202,E111,E126,E114,E402,W605 --statistics .
 
 dpkg-distros:
-	echo precise trusty xenial
+	echo ubuntu-trusty ubuntu-xenial ubuntu-bionic
 
 dpkg-requires:
 	echo dpkg-dev debhelper cdbs
