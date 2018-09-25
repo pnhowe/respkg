@@ -2,9 +2,9 @@ all:
 	./setup.py build
 
 install:
-	mkdir -p $(DESTDIR)var/lib/respkg
-	mkdir -p $(DESTDIR)usr/bin
-	install -m 755 bin/respkg $(DESTDIR)usr/bin
+	mkdir -p $(DESTDIR)/var/lib/respkg
+	mkdir -p $(DESTDIR)/usr/bin
+	install -m 755 bin/respkg $(DESTDIR)/usr/bin
 
 ifeq (ubuntu, $(DISTRO))
 	./setup.py install --root $(DESTDIR) --install-purelib=/usr/lib/python3/dist-packages/ --prefix=/usr --no-compile -O0
