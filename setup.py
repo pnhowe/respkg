@@ -22,8 +22,8 @@ class build( build_py ):
 setup( name='respkg',
        description='Resource Pakcage',
        author='Peter Howe',
-       version='0.1',
-       author_email='peter.howe@emc.com',
+       version='0.2',
+       author_email='peter.howe@virtustream.com',
        packages=[ 'respkg' ],
        cmdclass={ 'build_py': build }
        )

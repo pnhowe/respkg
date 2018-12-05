@@ -57,7 +57,7 @@ dpkg-file:
 	echo $(shell ls ../respkg_*.deb)
 
 rpm-distros:
-	echo centos-6
+	echo centos-6 centos-7
 
 rpm-requires:
 	echo rpm-build

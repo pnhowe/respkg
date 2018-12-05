@@ -118,7 +118,7 @@ class RespkgManager( object ):
       return resp.read()
 
   def _getManafest( self, url, component, proxy ):
-    path = os.path.join( url, '_repo_{0}'.format( component ), 'MANIFEST_none--all.json' )
+    path = os.path.join( url, '_repo_{0}'.format( component ), 'MANIFEST_all.json' )
     manifest = self._getHTTP( path, proxy )
     if manifest is None:
       return None
