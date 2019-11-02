@@ -4,5 +4,6 @@ debian
 dpkg
 build
 
-.ropeproject
+dpkg-setup
+rpm-setup
 respkg.egg-info

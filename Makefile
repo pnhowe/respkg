@@ -1,3 +1,8 @@
+DISTRO := $(shell lsb_release -si | tr A-Z a-z)
+DISTRO_MAJOR_VERSION := $(shell lsb_release -sr | cut -d. -f1)
+DISTRO_NAME := $(shell lsb_release -sc | tr A-Z a-z)
+VERSION := $(shell head -n 1 debian-common/changelog | awk '{match( $$0, /\(.+?\)/); print substr( $$0, RSTART+1, RLENGTH-2 ) }' | cut -d- -f1 )
+
 all:
 	./setup.py build
 
@@ -11,6 +16,9 @@ ifeq (ubuntu, $(DISTRO))
 else
 	./setup.py install --root $(DESTDIR) --prefix=/usr --no-compile -O0
 endif
+
+version:
+	echo $(VERSION)
 
 clean:
 	./setup.py clean

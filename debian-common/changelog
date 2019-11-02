@@ -1,3 +1,10 @@
+respkg (0.8-1) DIST; urgency=medium
+
+  * Merged work from vspeter
+  * updated versioning
+
+ -- Peter Howe <pnhowe@gmail.com>  Sat, 02 Nov 2019 11:04:07 -0600
+
 respkg (0.7-2) DIST; urgency=medium
 
   * Ported to Python3
