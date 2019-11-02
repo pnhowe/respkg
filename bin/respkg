@@ -12,9 +12,10 @@ from respkg import RespkgBuilder, RespkgReader, RespkgManager, __VERSION__
 INIT_FILE_PATH = '/tmp/respkg.init'
 
 oparser = optparse.OptionParser( description='respkg installer/manager/builder, version: {0}'.format( __VERSION__ ) )
-oparser.add_option( '-y', '--yes', help='Assume "yes" for Questions', action='store_true' )
+oparser.add_option( '-y', '--yes', help='Assume "yes" for Questions', dest='yes', action='store_true' )
+oparser.add_option( '-v', '--verbose', help='Verbose output', dest='verbose', action='store_true' )
 
-ogroup = optparse.OptionGroup( oparser, 'Package Building', 'name(-n) and version(-v) are required.' )
+ogroup = optparse.OptionGroup( oparser, 'Package Building', 'name(-n) and version(-e) are required.' )
 ogroup.add_option( '-b', '--build', help='Build new respkg ( name, version, description required )', dest='build', metavar='FILENAME' )
 ogroup.add_option( '-n', '--name', help='Name of Package, must be a single word', dest='name' )
 ogroup.add_option( '-e', '--version', help='Version of Package', dest='version' )
@@ -34,6 +35,7 @@ oparser.add_option_group( ogroup )
 
 ogroup = optparse.OptionGroup( oparser, 'Other Utilities', '' )
 ogroup.add_option( '-l', '--list', help='List Installed Packages', dest='list', action='store_true' )
+ogroup.add_option( '--list-contents', help='List contents of file', dest='list_contents', metavar='FILENAME' )
 ogroup.add_option( '--add-repo', help='Add Repo, followed by repo name, url for the repo, component, and optionally the proxy, url is the path to the location where the _repo_<component> is directory located. (example: respkg --add-repo myrepo http://repo/url mycomponent [proxy] )', dest='add_repo', action='store_true' )
 ogroup.add_option( '--set-key', help='Add Public Key to Repo, followed by repo name, then the repos signing key, signing key may be "-" to read from from stdin', dest='set_key', action='store_true' )
 ogroup.add_option( '--check-installed', help='Verify the Checksums of the locally installed files', dest='check_installed', action='store_true' )
@@ -51,7 +53,7 @@ def _continue_prompt():
   if not sys.stdin.isatty() or not sys.stdout.isatty():  # non interactive, fail
     return False
 
-  tmp = raw_input( 'Continue? (Y/N):' )
+  tmp = input( 'Continue? (Y/N):' )
   if tmp.lower() == 'y':
     return True
 
@@ -61,7 +63,7 @@ def _continue_prompt():
 
 def _updatesha( package, file_path ):
   sha256 = hashlib.sha256()
-  sha256.update( open( file_path, 'r' ).read().encode() )
+  sha256.update( open( file_path, 'rb' ).read().encode() )
   manager.setFileSum( package, file_path, sha256.hexdigest() )
 
 
@@ -127,9 +129,14 @@ def _install_file( file_name, target_dir, manager ):
 
     initfile = INIT_FILE_PATH
 
-  reader.extract( target_dir, _updatesha )
+  if options.verbose:
+    reader.extract( target_dir, _updatesha, lambda name, path: print( 'Extracting {0}...'.format( path ) ) )
+  else:
+    reader.extract( target_dir, _updatesha )
 
   if initfile is not None:
+    if options.verbose:
+      print( 'Running init...' )
     rc = subprocess.call( [ initfile, target_dir, reader.version, prev[ 'version' ] ] )
     os.unlink( initfile )
 
@@ -209,11 +216,21 @@ if options.check_installed:
   file_list = manager.getFileChecksums()
   for filename in file_list:
     sha256 = hashlib.sha256()
-    sha256.update( open( filename, 'r' ).read() )
+    sha256.update( open( filename, 'rb' ).read() )
     print( '{0}\t{1}'.format( filename, 'Good' if sha256.hexdigest() == file_list[ filename ] else 'Bad' ) )
 
   sys.exit( 0 )
 
+if options.list_contents:
+  if not os.path.isfile( options.list_contents ):
+    print( 'Package "{0}" is does not exist or is not a file.'.format( options.install ) )
+    sys.exit( 1 )
+
+  reader = RespkgReader( options.list_contents )
+  for file in reader.getFileList():
+    print( file )
+
+  sys.exit( 0 )
 
 if options.add_repo:
   if len( args ) < 3:
@@ -278,7 +295,7 @@ if options.repo:
 
 if options.install:
   if not os.path.isfile( options.install ):
-    print( 'Package "{0}" is does not exist or is not a file.'.format( ptions.install ) )
+    print( 'Package "{0}" is does not exist or is not a file.'.format( options.install ) )
     sys.exit( 1 )
 
   if not _install_file( options.install, options.target_dir, manager ):

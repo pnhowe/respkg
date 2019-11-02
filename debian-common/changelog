@@ -1,3 +1,11 @@
+respkg (0.7-2) DIST; urgency=medium
+
+  * Ported to Python3
+  * Added verbose option
+  * Added list-contents
+
+ -- Peter <peter@xps13-01>  Mon, 18 Jun 2018 21:48:13 -0600
+
 respkg (0.6-3) DIST; urgency=medium
 
   * depends and provides

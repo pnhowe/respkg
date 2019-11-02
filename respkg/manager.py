@@ -118,7 +118,7 @@ class RespkgManager( object ):
       return resp.read()
 
   def _getManafest( self, url, component, proxy ):
-    path = os.path.join( url, '_repo_{0}'.format( component ), 'MANIFEST_none--all.json' )
+    path = os.path.join( url, '_repo_{0}'.format( component ), 'MANIFEST_all.json' )
     manifest = self._getHTTP( path, proxy )
     if manifest is None:
       return None
@@ -213,7 +213,7 @@ class RespkgManager( object ):
       cur.close()
       return False
 
-    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN ({0}) ORDER BY "package";'.format( ','.join( '?' * len( conflict_list ) ), conflict_list ) )
+    cur.execute( 'SELECT "package" FROM "packages" WHERE "package" IN ({0}) ORDER BY "package";'.format( ','.join( '?' * len( conflict_list ) ) ), conflict_list )
     result_list = [ i[0] for i in cur.fetchall() ]
     if result_list:
       print( 'ERROR: Package "{0}" conflicts with package(s) allready installed "{1}"'.format( name, '", "'.join( conflict_list ) ) )

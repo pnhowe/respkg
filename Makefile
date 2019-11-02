@@ -1,41 +1,49 @@
 all:
+	./setup.py build
 
 install:
-	mkdir -p $(DESTDIR)var/lib/respkg
-	mkdir -p $(DESTDIR)usr/bin
-	install -m 755 bin/respkg $(DESTDIR)usr/bin
+	mkdir -p $(DESTDIR)/var/lib/respkg
+	mkdir -p $(DESTDIR)/usr/bin
+	install -m 755 bin/respkg $(DESTDIR)/usr/bin
+
+ifeq (ubuntu, $(DISTRO))
+	./setup.py install --root $(DESTDIR) --install-purelib=/usr/lib/python3/dist-packages/ --prefix=/usr --no-compile -O0
+else
+	./setup.py install --root $(DESTDIR) --prefix=/usr --no-compile -O0
+endif
 
 clean:
+	./setup.py clean
 	$(RM) -fr build
 	$(RM) -f dpkg
 	$(RM) -f rpm
+ifeq (ubuntu, $(DISTRO))
+	dh_clean || true
+endif
 
-full-clean: clean
+dist-clean: clean
 	$(RM) -fr debian
 	$(RM) -fr rpmbuild
 	$(RM) -f dpkg-setup
 	$(RM) -f rpm-setup
 
 test-distros:
-	echo trusty
+	echo ubuntu-xenial
 
 test-requires:
-	echo python-pytest
+	echo flake8 python3-pytest python3-pytest-cov
 
 test:
-	cd tests && py.test -x manager.py
-
-lint-requires:
-	echo linter
+	py.test-3 --cov=respkg --cov-report html --cov-report term -x
 
 lint:
-	linter
+	flake8 --ignore=E501,E201,E202,E111,E126,E114,E402,W605 --statistics .
 
 dpkg-distros:
-	echo precise trusty xenial
+	echo ubuntu-trusty ubuntu-xenial ubuntu-bionic
 
 dpkg-requires:
-	echo dpkg-dev debhelper cdbs
+	echo dpkg-dev debhelper python3-dev python3-setuptools
 
 dpkg-setup:
 	./debian-setup
@@ -49,7 +57,7 @@ dpkg-file:
 	echo $(shell ls ../respkg_*.deb)
 
 rpm-distros:
-	echo centos6
+	echo centos-6 centos-7
 
 rpm-requires:
 	echo rpm-build
