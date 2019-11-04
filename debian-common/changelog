@@ -1,3 +1,9 @@
+respkg (0.9-1) DIST; urgency=medium
+
+  * bug fix
+
+ -- Peter Howe <pnhowe@gmail.com>  Mon, 04 Nov 2019 11:16:08 -0700
+
 respkg (0.8-1) DIST; urgency=medium
 
   * Merged work from vspeter

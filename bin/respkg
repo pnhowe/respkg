@@ -63,7 +63,7 @@ def _continue_prompt():
 
 def _updatesha( package, file_path ):
   sha256 = hashlib.sha256()
-  sha256.update( open( file_path, 'rb' ).read().encode() )
+  sha256.update( open( file_path, 'rb' ).read() )
   manager.setFileSum( package, file_path, sha256.hexdigest() )
 
 
