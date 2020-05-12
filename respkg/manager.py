@@ -145,7 +145,7 @@ class RespkgManager( object ):
 
   def _getPackageFile( self, repo_url, file_path, proxy ):
     path = os.path.join( repo_url, file_path )
-    tmpfile = open( '/tmp/respkgdownload.tmp', 'w' )
+    tmpfile = open( '/tmp/respkgdownload.tmp', 'wb' )
     rc = self._getHTTP( path, proxy, tmpfile )
     if rc is None:
       return None
@@ -335,7 +335,7 @@ class RespkgManager( object ):
 
     local_file = self._getPackageFile( repo_url, package[ version ][ 'path' ], proxy )
     sha256 = hashlib.sha256()
-    sha256.update( open( local_file, 'r' ).read() )
+    sha256.update( open( local_file, 'rb' ).read() )
     if package[ version ][ 'sha256' ] != sha256.hexdigest():
       print( 'SHA256 of downloaded file dose not match manifest' )
       return None
