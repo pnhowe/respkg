@@ -1,3 +1,9 @@
+respkg (0.10-1) DIST; urgency=medium
+
+  * bug fixes
+
+ -- Peter Howe <pnhowe@gmail.com>  Tue, 19 May 2020 18:26:26 -0600
+
 respkg (0.9-1) DIST; urgency=medium
 
   * bug fix
