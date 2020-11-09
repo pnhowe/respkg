@@ -35,8 +35,10 @@ dist-clean: clean
 	$(RM) -f dpkg-setup
 	$(RM) -f rpm-setup
 
-test-distros:
-	echo ubuntu-xenial
+.PHONY:: all clean dist-clean
+
+test-blueprints:
+	echo ubuntu-bioic-base
 
 test-requires:
 	echo flake8 python3-pytest python3-pytest-cov
@@ -47,8 +49,10 @@ test:
 lint:
 	flake8 --ignore=E501,E201,E202,E111,E126,E114,E402,W605 --statistics .
 
-dpkg-distros:
-	echo ubuntu-trusty ubuntu-xenial ubuntu-bionic
+.PHONY:: test-bluprints test-requires lint test
+
+dpkg-blueprints:
+	echo ubuntu-xenia-basel ubuntu-bionic-base ubuntu-focal-base
 
 dpkg-requires:
 	echo dpkg-dev debhelper python3-dev python3-setuptools
@@ -64,8 +68,10 @@ dpkg:
 dpkg-file:
 	echo $(shell ls ../respkg_*.deb)
 
-rpm-distros:
-	echo centos-6 centos-7
+.PHONY:: dpkg-blueprints dpkg-requires dpkg-file
+
+rpm-blueprints:
+	echo centos-6-base centos-7-base
 
 rpm-requires:
 	echo rpm-build
@@ -81,4 +87,4 @@ rpm:
 rpm-file:
 	echo $(shell ls rpmbuild/RPMS/*/respkg-*.rpm)
 
-.PHONY: all clean full-clean dpkg-distros dpkg-requires dpkg-file rpm-distros rpm-requires rpm-file
+.PHONY:: rpm-blueprints rpm-requires rpm-file
