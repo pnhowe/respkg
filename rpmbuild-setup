@@ -2,11 +2,17 @@
 set -e
 set -x
 
-DISTRO_RELEASE="el$(lsb_release -sr | awk -F "." '{ print $1 }')_1"
+DISTRO_RELEASE="el$( lsb_release -sr | awk -F "." '{ print $1 }' )_1"
 
 DEB_RELEASE="$( head debian-common/changelog -n1 | sed 's/.*(\([^)]*\)).*/\1/' )"
 RELEASE="$( echo "$DEB_RELEASE" | cut -d '-' -f2 )"
 VERSION="$( echo "$DEB_RELEASE" | cut -d '-' -f1 )"
+
+PYTHON_VERSION_MAJOR=$(python3 --version | cut -d ' ' -f2 | cut -d '.' -f1)
+PYTHON_VERSION_MINOR=$(python3 --version | cut -d ' ' -f2 | cut -d '.' -f2)
+
+PYTHON_REQUIRES="python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
+PYTHON_PATH="python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}"
 
 echo "Setting up for '$DISTRO_RELEASE' Version: '$VERSION' Release: '$RELEASE'"
 
@@ -27,8 +33,8 @@ Summary:        RESource PacKaGe
 Version:        $VERSION
 Release:        $RELEASE.$DISTRO_RELEASE
 License:        Nonfree
-Group:          nonfree/rubicon
-Requires:       python, python-simplejson
+Group:          multiverse/python
+Requires:       $PYTHON_REQUIRES, python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}-simplejson
 BuildArch:      noarch
 
 %description
@@ -36,12 +42,11 @@ respkg - RESource PacKaGe
 
 %install
 cd %{_srcdir}
-./setup.py build
-./setup.py install --prefix=%{buildroot}/usr
 make install DESTDIR=%{buildroot}/
 
 %files
-/*
+/usr/lib/$PYTHON_PATH/site-packages/*
+/usr/bin/*
 
 %changelog
 
