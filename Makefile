@@ -52,7 +52,7 @@ lint:
 .PHONY:: test-bluprints test-requires lint test
 
 dpkg-blueprints:
-	echo ubuntu-xenia-basel ubuntu-bionic-base ubuntu-focal-base
+	echo ubuntu-xenial-base ubuntu-bionic-base ubuntu-focal-base
 
 dpkg-requires:
 	echo dpkg-dev debhelper python3-dev python3-setuptools
