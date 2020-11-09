@@ -38,7 +38,7 @@ dist-clean: clean
 .PHONY:: all clean dist-clean
 
 test-blueprints:
-	echo ubuntu-bioic-base
+	echo ubuntu-bionic-base
 
 test-requires:
 	echo flake8 python3-pytest python3-pytest-cov
