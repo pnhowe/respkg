@@ -53,7 +53,7 @@ test:
 .PHONY:: test-blueprints test-requires lint test
 
 dpkg-blueprints:
-	echo ubuntu-xenial-base ubuntu-bionic-base ubuntu-focal-base
+	echo ubuntu-bionic-base ubuntu-focal-base
 
 dpkg-requires:
 	echo dpkg-dev debhelper python3-dev python3-setuptools dh-python
@@ -72,15 +72,11 @@ dpkg-file:
 .PHONY:: dpkg-blueprints dpkg-requires dpkg-file
 
 rpm-blueprints:
-	echo centos-6-base centos-7-base
+	echo centos-7-base
 
 rpm-requires:
 	echo rpm-build
-ifeq (6, $(DISTRO_MAJOR_VERSION))
-	echo python34-setuptools
-else
 	echo python36-setuptools
-endif
 
 rpm-setup:
 	./rpmbuild-setup
@@ -102,10 +98,8 @@ installcheck-depends:
 	echo nullunit:dev
 
 installcheck-resources:
-	echo xenial:{ \"resource\": \"vm\", \"blueprint\": \"ubuntu-xenial-base\", \"config_values\": { \"\<repo_list\": [ { \"distribution\":\"{{ distro_version }}\", \"type\":\"apt\" ,\"uri\":\"http://repo/apt-dev\", \"components\":[ \"main\" ], \"proxy\":\"local\", \"key_uri\": \"http://repo/repo-key\" } ] } }
 	echo bionic:{ \"resource\": \"vm\", \"blueprint\": \"ubuntu-bionic-base\", \"config_values\": { \"\<repo_list\": [ { \"distribution\":\"{{ distro_version }}\", \"type\":\"apt\" ,\"uri\":\"http://repo/apt-dev\", \"components\":[ \"main\" ], \"proxy\":\"local\", \"key_uri\": \"http://repo/repo-key\" } ] } }
 	echo focal:{ \"resource\": \"vm\", \"blueprint\": \"ubuntu-focal-base\", \"config_values\": { \"\<repo_list\": [ { \"distribution\":\"{{ distro_version }}\", \"type\":\"apt\" ,\"uri\":\"http://repo/apt-dev\", \"components\":[ \"main\" ], \"proxy\":\"local\", \"key_uri\": \"http://repo/repo-key\" } ] } }
-	echo centos-6:{ \"resource\": \"vm\", \"blueprint\": \"centos-6-base\", \"config_values\": { \"\<repo_list\": [ { \"type\":\"yum\" ,\"uri\":\"http://repo/yum-dev/rhel/main/{{ distro_version }}/\", \"name\":\"devrepo\", \"proxy\":\"local\", \"key_file\": \"/etc/pki/rpm-gpg/devrepo\", \"key_uri\": \"http://repo/repo-key\" } ] } }
 	echo centos-7:{ \"resource\": \"vm\", \"blueprint\": \"centos-7-base\", \"config_values\": { \"\<repo_list\": [ { \"type\":\"yum\" ,\"uri\":\"http://repo/yum-dev/rhel/main/{{ distro_version }}/\", \"name\": \"devrepo\" , \"proxy\":\"local\", \"key_file\": \"/etc/pki/rpm-gpg/devrepo\", \"key_uri\": \"http://repo/repo-key\" } ] } }
 
 installcheck:

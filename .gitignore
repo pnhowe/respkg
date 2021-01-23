@@ -1,5 +1,6 @@
 *.pyc
 *.rpkg
+.coverage
 debian
 dpkg
 build
