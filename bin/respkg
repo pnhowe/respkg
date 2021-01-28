@@ -31,6 +31,7 @@ ogroup = optparse.OptionGroup( oparser, 'Package Installing', 'Install from loca
 ogroup.add_option( '-r', '--from-repo', help='Install from repo, followed by package name, and optionally version, (example: respkg -r myrepo mypackage [version])', dest='repo' )
 ogroup.add_option( '-i', '--install', help='Install respkg', dest='install', metavar='FILENAME' )
 ogroup.add_option( '-a', '--target-dir', help='Target Directory to install to (default: /)', dest='target_dir', default='/' )
+ogroup.add_option(  '--leave-init', help='Do not delete the init script after it has been run, usefull for debugging the init script', dest='leave_init', action='store_true', default=False )
 oparser.add_option_group( ogroup )
 
 ogroup = optparse.OptionGroup( oparser, 'Other Utilities', '' )
@@ -67,7 +68,7 @@ def _updatesha( package, file_path ):
   manager.setFileSum( package, file_path, sha256.hexdigest() )
 
 
-def _install_file( file_name, target_dir, manager ):
+def _install_file( file_name, target_dir, manager, leave_init ):
   if not os.path.isdir( target_dir ):
     print( 'Target dir "{0}" does not exist or is not a directory.'.format( target_dir ) )
     return False
@@ -138,7 +139,15 @@ def _install_file( file_name, target_dir, manager ):
     if options.verbose:
       print( 'Running init...' )
     rc = subprocess.call( [ initfile, target_dir, reader.version, prev[ 'version' ] ] )
-    os.unlink( initfile )
+
+    if leave_init:
+      print( 'WARNING: leaving init, to execute run:' )
+      print()
+      print( ' '.join( [ initfile, target_dir, reader.version, prev[ 'version' ] ] ) )
+      print()
+
+    else:
+      os.unlink( initfile )
 
     if rc != 0:
       print( 'WARNING: init returned "{0}"'.format( rc ) )
@@ -284,7 +293,7 @@ if options.repo:
       print( 'Error installing from repo' )
       sys.exit( 1 )
 
-    rc &= _install_file( tempfile, options.target_dir, manager )
+    rc &= _install_file( tempfile, options.target_dir, manager, options.leave_init )
     os.unlink( tempfile )
 
   if not rc:
@@ -298,7 +307,7 @@ if options.install:
     print( 'Package "{0}" is does not exist or is not a file.'.format( options.install ) )
     sys.exit( 1 )
 
-  if not _install_file( options.install, options.target_dir, manager ):
+  if not _install_file( options.install, options.target_dir, manager, options.leave_init ):
     sys.exit( 1 )
 
   sys.exit( 0 )
