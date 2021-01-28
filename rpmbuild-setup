@@ -32,7 +32,7 @@ Name:           respkg
 Summary:        RESource PacKaGe
 Version:        $VERSION
 Release:        $RELEASE.$DISTRO_RELEASE
-License:        Nonfree
+License:        Apache2
 Group:          multiverse/python
 Requires:       $PYTHON_REQUIRES, python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}-simplejson
 BuildArch:      noarch
